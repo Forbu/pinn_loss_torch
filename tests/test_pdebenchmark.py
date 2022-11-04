@@ -17,7 +17,6 @@ def test_burgerpdedataset():
     # we choose the batch size
     batch_size = 1
 
-    ############### TRAINING ################
     # now we can create the dataloader
     edges, edges_index = create_graph_burger(nb_space, delta_x, nb_nodes=None, nb_edges=None)
 
