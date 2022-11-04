@@ -13,6 +13,9 @@ RUN apt-get update && apt-get install -y python3-pip
 # install pytorch geometric
 RUN pip install torch-scatter torch-sparse torch-cluster torch-spline-conv torch-geometric -f https://data.pyg.org/whl/torch-1.12.0+cu113.html
 
+# install pytorch_lightning
+RUN pip install pytorch_lightning
+
 # install mlflow (for metrics tracking)
 RUN pip install mlflow==1.27.0
 
@@ -22,9 +25,6 @@ RUN pip install pytest
 # install dvc (model versioning)
 RUN pip install dvc
 
-# install torch (only to use the dataloder / dataset capabilities)
-RUN pip install torch
-
 # install matplotlib (for plotting)
 RUN pip install matplotlib
 
@@ -33,8 +33,5 @@ RUN pip install h5py
 
 # install git without asking for confirmation or geographic location
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -qq -y git
-
-
 RUN git config --global user.name "Adrien B"
-
 RUN git config --global user.email "forbu14@gmail.com"
