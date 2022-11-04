@@ -14,9 +14,8 @@ class EdgeSpatialDerivative(Module):
     """
     This class is used to compute the derivative of the edge
     """
-    def __init__(self, dim):
+    def __init__(self):
         super(EdgeSpatialDerivative, self).__init__()
-        self.dim = dim
 
     def forward(self, src, dest, edge_attr, u=None, batch=None):
         """
@@ -29,27 +28,28 @@ class NodeSpatialDerivative(Module):
     """
     This class is used to compute the derivative of the node
     """
-    def __init__(self, dim):
+    def __init__(self):
         super(NodeSpatialDerivative, self).__init__()
-        self.dim = dim
 
     def forward(self, x, edge_index, edge_attr, u=None, batch=None):
         """
         This function compute the derivative of the node
         It is the mean of the derivative of the edge
         """
-        derivative = scatter_mean(edge_attr, edge_index[1], dim=0)
+        nb_node = x.shape[0]
+
+        derivative = scatter_mean(edge_attr, edge_index[1], dim=0, dim_size=nb_node)
         return derivative
 
 
 # here we define the loss operator
 class SpatialDerivativeOperator(Module):
 
-    def __init__(self, dim_node, dim_edge) -> None:
+    def __init__(self, index_derivative_node, index_derivative_edge) -> None:
         super().__init__()
 
-        self.dim_node = dim_node
-        self.dim_edge = dim_edge
+        self.index_derivative_node = index_derivative_node
+        self.index_derivative_edge = index_derivative_edge
 
         # we define the meta layer TODO CHANGE
         self.meta_layer = MetaLayer(
@@ -60,16 +60,21 @@ class SpatialDerivativeOperator(Module):
         """
         TODO care about dim_node and dim_edge
         """
-        return self.meta_layer(graph.x, graph.edge_index, graph.edge_attr)
+        nodes_input = graph.x[:, self.index_derivative_node]
+        edges_input = graph.edge_attr[:, self.index_derivative_edge]
+        
+        nodes, _, _ = self.meta_layer(nodes_input, graph.edge_index, edges_input)
+
+        return nodes
 
 class TemporalDerivativeOperator(Module):
     """
     This class is used to compute the temporal derivative of the graph
     """
-    def __init__(self, dim_node, delta_t) -> None:
+    def __init__(self, index_derivator, delta_t) -> None:
         super().__init__()
 
-        self.dim_node = dim_node
+        self.index_derivator = index_derivator
 
         self.delta_t = delta_t
 
@@ -77,23 +82,23 @@ class TemporalDerivativeOperator(Module):
         """
         TODO care about dim_node
         """
-        return (graph_t.x - graph_t_1.x)/self.delta_t
+        return (graph_t.x[:, self.index_derivator] - graph_t_1.x[:, self.index_derivator])/self.delta_t
 
 class BurgerDissipativeLossOperator(Module):
     """
     This class is used to compute the dissipative loss of the burger equation
     """
-    def __init__(self, dim_node, delta_t, dim_edge, mu) -> None:
+    def __init__(self, index_derivative_node, index_derivative_edge, delta_t, mu) -> None:
         super().__init__()
 
-        self.dim_node = dim_node
-        self.dim_edge = dim_edge
+        self.index_derivative_node = index_derivative_node
+        self.index_derivative_edge = index_derivative_edge
 
         self.delta_t = delta_t
         self.mu = mu
 
-        self.temporal_derivative_operator = TemporalDerivativeOperator(self.dim_node, self.delta_t)
-        self.spatial_derivative_operator = SpatialDerivativeOperator(self.dim_node, self.dim_edge)
+        self.temporal_derivative_operator = TemporalDerivativeOperator(self.index_derivative_node, self.delta_t)
+        self.spatial_derivative_operator = SpatialDerivativeOperator(self.index_derivative_node, self.index_derivative_edge)
 
     def forward(self, graph_t, graph_t_1):
         """
@@ -105,12 +110,12 @@ class BurgerDissipativeLossOperator(Module):
         # compute the spatial derivative
         spatial_derivative = self.spatial_derivative_operator(graph_t_1)
 
-        graph_first_order = Data(x=temporal_derivative, edge_index=graph_t_1.edge_index, edge_attr=spatial_derivative)
+        graph_first_order = Data(x=spatial_derivative.unsqueeze(-1), edge_index=graph_t_1.edge_index, edge_attr=graph_t_1.edge_attr)
 
         # second order derivative
         second_order_derivative = self.spatial_derivative_operator(graph_first_order)
 
         # compute the loss
-        loss = temporal_derivative + spatial_derivative * graph_t_1.x - self.mu * second_order_derivative
+        loss = temporal_derivative + spatial_derivative * graph_t_1.x[:, self.index_derivative_node] - self.mu * second_order_derivative
 
         return loss

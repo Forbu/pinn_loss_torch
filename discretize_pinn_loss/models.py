@@ -148,7 +148,10 @@ class NodeProcessor(nn.Module):
 
     def forward(self, x, edge_index, edge_attr, u=None, batch=None):
         row, col = edge_index
-        out = scatter_sum(edge_attr, col, dim=0) #aggregate edge message by target
+
+        nb_node = x.shape[0]
+
+        out = scatter_sum(edge_attr, col, dim=0, dim_size=nb_node) #aggregate edge message by target
         out = cat([x, out], dim=-1)
         out = self.node_mlp(out)
         out += x #residual connection
