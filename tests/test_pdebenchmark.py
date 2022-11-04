@@ -20,7 +20,7 @@ def test_burgerpdedataset():
     # now we can create the dataloader
     edges, edges_index = create_graph_burger(nb_space, delta_x, nb_nodes=None, nb_edges=None)
 
-    path_hdf5 = "/home/data_pde_benchmark/1D_Burgers_Sols_Nu0.001.hdf5"
+    path_hdf5 = "/app/data/1D_Burgers_Sols_Nu0.001.hdf5"
 
     # if file not exist, we valid the test
     try:
