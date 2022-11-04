@@ -41,7 +41,6 @@ class NodeSpatialDerivative(Module):
         derivative = scatter_mean(edge_attr, edge_index[1], dim=0, dim_size=nb_node)
         return derivative
 
-
 # here we define the loss operator
 class SpatialDerivativeOperator(Module):
 
