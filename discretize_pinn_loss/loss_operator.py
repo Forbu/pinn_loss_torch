@@ -8,6 +8,7 @@ from torch.nn import Module
 from torch import nn, cat
 from torch_geometric.nn import MetaLayer
 from torch_scatter import scatter_sum, scatter_mean
+from torch_geometric.data import Data
 
 class EdgeSpatialDerivative(Module):
     """
@@ -65,14 +66,51 @@ class TemporalDerivativeOperator(Module):
     """
     This class is used to compute the temporal derivative of the graph
     """
-    def __init__(self, dim_node, dim_edge) -> None:
+    def __init__(self, dim_node, delta_t) -> None:
+        super().__init__()
+
+        self.dim_node = dim_node
+
+        self.delta_t = delta_t
+
+    def forward(self, graph_t, graph_t_1):
+        """
+        TODO care about dim_node
+        """
+        return (graph_t.x - graph_t_1.x)/self.delta_t
+
+class BurgerDissipativeLossOperator(Module):
+    """
+    This class is used to compute the dissipative loss of the burger equation
+    """
+    def __init__(self, dim_node, delta_t, dim_edge, mu) -> None:
         super().__init__()
 
         self.dim_node = dim_node
         self.dim_edge = dim_edge
 
+        self.delta_t = delta_t
+        self.mu = mu
+
+        self.temporal_derivative_operator = TemporalDerivativeOperator(self.dim_node, self.delta_t)
+        self.spatial_derivative_operator = SpatialDerivativeOperator(self.dim_node, self.dim_edge)
+
     def forward(self, graph_t, graph_t_1):
         """
-        TODO care about dim_node and dim_edge
+        TODO care about dim_node
         """
-        return graph_t.x - graph_t_1.x
+        # compute the temporal derivative
+        temporal_derivative = self.temporal_derivative_operator(graph_t, graph_t_1)
+
+        # compute the spatial derivative
+        spatial_derivative = self.spatial_derivative_operator(graph_t_1)
+
+        graph_first_order = Data(x=temporal_derivative, edge_index=graph_t_1.edge_index, edge_attr=spatial_derivative)
+
+        # second order derivative
+        second_order_derivative = self.spatial_derivative_operator(graph_first_order)
+
+        # compute the loss
+        loss = temporal_derivative + spatial_derivative * graph_t_1.x - self.mu * second_order_derivative
+
+        return loss
