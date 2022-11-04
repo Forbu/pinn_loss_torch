@@ -18,35 +18,55 @@ The goal is to train a GNN to solve this PDE.
 from discretize_pinn_loss.pdebenchmark import BurgerPDEDataset
 from discretize_pinn_loss.models import GNN
 from discretize_pinn_loss.utils import create_graph_burger
+from discretize_pinn_loss.loss_operator import BurgerDissipativeLossOperator
 
 import pytorch_lightning as pl
 
 import torch
 from torch.utils.data import DataLoader
+from torch_geometric.data import Data
 
-class GnnTrainer(pl.LightningModule):
+import mlflow
+
+mlflow.set_tracking_uri("http://localhost:5000")
+
+class GnnFull(pl.LightningModule):
     def __init__(self, model_gnn, loss_function):
         super().__init__()
 
         self.model = model_gnn
         self.loss_function = loss_function
 
-        self.loss = torch.nn.MSELoss()
+        self.loss_mse = torch.nn.MSELoss()
 
-    def forward(self, data):
-        return self.model(data)
+    def forward(self, graph):
+        return self.model(graph)
 
     def training_step(self, batch, batch_idx):
-        loss = self.model.loss(batch)
+        
+        nodes = batch["nodes"]
+        edges = batch["edges"]
+        edge_index = batch["edge_index"]
+
+        graph_t_1 = Data(x=nodes, edge_index=edge_index, edge_attr=edges)
+
+        # forward pass
+        nodes_pred = self.forward(graph_t_1)
+
+        # we create the two graphs
+        graph_pred = Data(x=nodes_pred, edge_index=edge_index, edge_attr=edges)
+
+        # compute loss
+        relative_loss = self.loss_function(graph_pred, graph_t_1)
+
+        loss = self.loss_mse(relative_loss)
+
         self.log("train_loss", loss)
         return loss
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
+        optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-3)
         return optimizer
-
-    def train_dataloader(self):
-        return DataLoader(self.dataset, batch_size=self.batch_size, shuffle=True, num_workers=0)
 
 def train():
 
@@ -86,5 +106,22 @@ def train():
             hidden_dim_decoder=32, hidden_layers_decoder=2,
             output_type='acceleration')
 
-    #
+    # we create the burger function
+    burger_loss = BurgerDissipativeLossOperator(index_derivative_node=0, index_derivative_edge=0, delta_t=delta_t, mu=0.01)
+
+    # we create the trainer
+    trainer = GnnFull(model, burger_loss)
+
+    # we create the trainer
+    mlflow_logger = pl.loggers.MLFlowLogger(experiment_name="burger", tracking_uri="http://localhost:5000")
+    trainer = pl.Trainer(max_epochs=1, logger=mlflow_logger)
+
+    # we train
+    trainer.fit(trainer, dataloader)
+
+    # we save the model
+    torch.save(trainer.model.state_dict(), "models_params/burger_model.pt")
+
+if __name__ == "__main__":
+    train()
 
