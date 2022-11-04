@@ -1,17 +1,15 @@
-# dockerfile definition to create a docker image for the application (pinn_loss_gnn)
-# jax base image
-FROM nvidia/cuda:11.3.0-runtime-ubuntu22.04
+# chargement de l'image Docker contenant pytorch et les drivers gpu (~3Go)
+FROM pytorch/pytorch:1.12.1-cuda11.3-cudnn8-runtime
 
-# install python3.9
-RUN apt-get update && apt-get install -y software-properties-common
+USER root
+			
+RUN apt update -y && \
+    apt install -y build-essential && \
+    apt install -y gcc && \
+	DEBIAN_FRONTEND="noninteractive" TZ="Europe/Paris" && \
+    pip install --upgrade pip
 
-RUN add-apt-repository ppa:deadsnakes/ppa && apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -qq -y python3.9 python3.9-dev python3.9-distutils
-
-# install pip
-RUN apt-get update && apt-get install -y python3-pip
-
-# install pytorch geometric
-RUN pip install torch-scatter torch-sparse torch-cluster torch-spline-conv torch-geometric -f https://data.pyg.org/whl/torch-1.12.0+cu113.html
+RUN pip install torch-scatter torch-sparse torch-cluster torch-spline-conv torch-geometric -f https://data.pyg.org/whl/torch-1.12.1+cu113.html
 
 # install pytorch_lightning
 RUN pip install pytorch_lightning
@@ -35,3 +33,6 @@ RUN pip install h5py
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -qq -y git
 RUN git config --global user.name "Adrien B"
 RUN git config --global user.email "forbu14@gmail.com"
+
+# création des dossiers pour stocker les données
+RUN mkdir /app
