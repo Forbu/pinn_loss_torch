@@ -58,7 +58,7 @@ def test_burgerpdedataset_fullsimu():
 
     # we test the dataloader
     for i, data in enumerate(dataloader):
-        assert data["nodes_t0"].shape == (batch_size, nb_space,)
+        assert data["nodes_t0"].shape == (batch_size, nb_space,2)
         assert data["edges"].shape == (batch_size, (nb_space - 1) * 2 , 1)
         assert data["edges_index"].shape == (batch_size, (nb_space - 1) * 2, 2)
         assert data["image_result"].shape == (batch_size, nb_time, nb_space)
@@ -67,3 +67,6 @@ def test_burgerpdedataset_fullsimu():
         assert data['nodes_boundary_x_1'].shape == (batch_size, nb_time,)
 
         break
+
+
+

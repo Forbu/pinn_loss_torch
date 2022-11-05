@@ -121,6 +121,8 @@ class GnnFull(pl.LightningModule):
             edges_index = data_full["edges_index"].long().T
             image_result = data_full["image_result"].float()
 
+            mask = data_full["mask"].float()
+
             nodes_boundary_x__1 = data_full['nodes_boundary_x__1']
             nodes_boundary_x_1 = data_full['nodes_boundary_x_1']
 
@@ -138,8 +140,10 @@ class GnnFull(pl.LightningModule):
                 nodes_pred = self.forward(graph_current)
 
                 # we add the boundary conditions
-                nodes_pred[0] = nodes_boundary_x__1[t]
-                nodes_pred[-1] = nodes_boundary_x_1[t]
+                nodes_pred[0, 0] = nodes_boundary_x__1[t]
+                nodes_pred[-1, 0] = nodes_boundary_x_1[t]
+
+                nodes_pred = torch.cat([nodes_pred, mask], axis = 1)
 
                 # we create the two graphs
                 graph_pred = Data(x=nodes_pred, edge_index=edges_index, edge_attr=edges)
@@ -148,7 +152,7 @@ class GnnFull(pl.LightningModule):
                 graph_current = graph_pred
 
                 # we update the result
-                result_prediction[t, :] = nodes_pred.squeeze(1)
+                result_prediction[t, :] = nodes_pred[:, 0]
 
             # we compute the loss
             loss = self.loss_mse(result_prediction, image_result)
