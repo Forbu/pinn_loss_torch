@@ -19,7 +19,7 @@ import sys
 sys.path.append("/app/")
 
 
-from discretize_pinn_loss.pdebenchmark import BurgerPDEDataset
+from discretize_pinn_loss.pdebenchmark import BurgerPDEDataset, BurgerPDEDatasetFullSimulation
 from discretize_pinn_loss.models import GNN
 from discretize_pinn_loss.utils import create_graph_burger
 from discretize_pinn_loss.loss_operator import BurgerDissipativeLossOperator
@@ -32,14 +32,18 @@ from torch_geometric.data import Data
 
 import mlflow
 
+import hashlib
+import datetime
+
 mlflow.set_tracking_uri("http://localhost:5000")
 
 class GnnFull(pl.LightningModule):
-    def __init__(self, model_gnn, loss_function):
+    def __init__(self, model_gnn, loss_function, eval_dataset_full_image=None):
         super().__init__()
 
         self.model = model_gnn
         self.loss_function = loss_function
+        self.eval_dataset_full_image = eval_dataset_full_image
 
         self.loss_mse = torch.nn.MSELoss()
 
@@ -88,8 +92,85 @@ class GnnFull(pl.LightningModule):
 
         self.log("val_loss", loss)
 
-
         return loss
+
+    # on validation epoch end
+    def validation_epoch_end(self, outputs):
+
+
+        if self.eval_dataset_full_image is None:
+            return
+
+        # inference mode
+        with torch.no_grad():
+            # here we should retrieve the full image from the dataset and compute the result with the help of the model (recursively)
+            # we should then compute the loss between the prediction and the ground truth and log the artifact
+            # we should also log the loss
+            
+            # we choose a random sample
+            id_sample = torch.randint(0, len(self.eval_dataset_full_image), (1,)).item()
+            data_full = self.eval_dataset_full_image[id_sample]
+
+            # get boundary conditions
+            nodes_t0 = data_full["nodes_t0"].unsqueeze(1).float()
+            edges = data_full["edges"].float()
+            edges_index = data_full["edges_index"].long().T
+            image_result = data_full["image_result"].float()
+
+            nodes_boundary_x__1 = data_full['nodes_boundary_x__1']
+            nodes_boundary_x_1 = data_full['nodes_boundary_x_1']
+
+            result_prediction = torch.zeros_like(image_result)
+            result_prediction[0, :] = nodes_t0.squeeze()
+
+            # we create the graph
+            graph_current = Data(x=nodes_t0, edge_index=edges_index, edge_attr=edges)
+
+            # now we can apply the model recursively to get the full image
+            nb_time = image_result.shape[0]
+
+            for t in range(1, nb_time):
+                # forward pass
+                nodes_pred = self.forward(graph_current)
+
+                # we add the boundary conditions
+                nodes_pred[0] = nodes_boundary_x__1[t]
+                nodes_pred[-1] = nodes_boundary_x_1[t]
+
+                # we create the two graphs
+                graph_pred = Data(x=nodes_pred, edge_index=edges_index, edge_attr=edges)
+
+                # we update the graph
+                graph_current = graph_pred
+
+                # we update the result
+                result_prediction[t, :] = nodes_pred.squeeze(1)
+
+            # we compute the loss
+            loss = self.loss_mse(result_prediction, image_result)
+
+            self.log("val_loss_full_image", loss)
+
+            # we log the two images (ground truth and prediction)
+            image_target = image_result.detach().cpu().numpy()
+            image_prediction = result_prediction.detach().cpu().numpy()
+
+            # we have to normalize thes images to be able to log them
+            # we normalize the image to have all the values between 0 and 1
+            max_ = max(image_target.max(), image_prediction.max())
+            
+            min_ = min(image_target.min(), image_prediction.min())
+
+            image_target = (image_target - min_) / (max_ - min_)
+            image_prediction = (image_prediction - min_) / (max_ - min_)
+
+            # get run id
+            try:
+                # call the logger to log the artifact
+                self.logger.experiment.log_image(image = image_target, artifact_file = "image_target.png", run_id=self.logger.run_id)
+                self.logger.experiment.log_image(image = image_prediction, artifact_file = "image_prediction.png", run_id=self.logger.run_id)
+            except Exception as e:
+                print(e)
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-3)
@@ -102,7 +183,7 @@ def train():
     nb_time = 200
 
     delta_x = 2.0 / nb_space
-    delta_t = 2.0 / nb_time # to check
+    delta_t = 1.0 / nb_time # to check
 
     edges, edges_index = create_graph_burger(nb_space, delta_x, nb_nodes=None, nb_edges=None)
 
@@ -110,8 +191,11 @@ def train():
     path = "/app/data/1D_Burgers_Sols_Nu0.01.hdf5"
     dataset = BurgerPDEDataset(path_hdf5=path, edges=edges, edges_index=edges_index)
 
+    # init dataset for full image
+    dataset_full_image = BurgerPDEDatasetFullSimulation(path_hdf5=path, edges=edges, edges_index=edges_index)
+
     # we take a subset of the dataset
-    dataset = torch.utils.data.Subset(dataset, range(0, 10000))
+    dataset = torch.utils.data.Subset(dataset, range(0, 40000))
 
     # divide into train and test
     train_size = int(0.95 * len(dataset))
@@ -147,10 +231,12 @@ def train():
     # we create the burger function
     burger_loss = BurgerDissipativeLossOperator(index_derivative_node=0, index_derivative_edge=0, delta_t=delta_t, mu=0.01)
 
-    # we create the trainer
-    gnn_full = GnnFull(model, burger_loss)
+
 
     # we create the trainer
+    gnn_full = GnnFull(model, burger_loss, eval_dataset_full_image=dataset_full_image)
+
+    # we create the trainer with the logger
     mlflow_logger = pl.loggers.MLFlowLogger(experiment_name="burger", tracking_uri="http://localhost:5000")
     trainer = pl.Trainer(max_epochs=1, logger=mlflow_logger, gradient_clip_val=0.5, accumulate_grad_batches=8, val_check_interval = 0.05)
 

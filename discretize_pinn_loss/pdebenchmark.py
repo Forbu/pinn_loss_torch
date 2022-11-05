@@ -50,11 +50,11 @@ class BurgerPDEDataset(Dataset):
 
         return {"nodes" : tensor, "edges" : self.edges, "edges_index" : self.edges_index, "nodes_next" : tensor_tp1}
 
-class BurgerPDEDataset_fullsimu(Dataset):
+class BurgerPDEDatasetFullSimulation(Dataset):
     def __init__(self, path_hdf5, edges, edges_index):
         self.path_hdf5 = path_hdf5
-        self.edges = edges
-        self.edges_index = edges_index
+        self.edges = torch.Tensor(edges)
+        self.edges_index = torch.Tensor(edges_index)
 
         # first read to know the lenght of the dataset
         with h5py.File(self.path_hdf5, "r") as f:
@@ -70,23 +70,26 @@ class BurgerPDEDataset_fullsimu(Dataset):
             self.x = np.array(f['x-coordinate'])
             
     def __len__(self):
-        return self.len_item * (self.len_t - 3)
+        return self.len_item
 
     def __getitem__(self, idx):
 
-        # we get the index of the time step
-        idx_t = idx // (self.len_item - 3)
-
         # we get the index of the item
-        idx_item = idx % self.len_item
+        idx_item = idx 
         
         # we open the hdf5 file
         with h5py.File(self.path_hdf5, "r") as f:
             # we get the tensor
             tensor_arr = f['tensor']
             # we get the tensor at the index idx
-            tensor = np.array(tensor_arr[idx_item, idx_t, :])
+            tensor = torch.Tensor(tensor_arr[idx_item, :, :])
 
-            tensor_tp1 = np.array(tensor_arr[idx_item, idx_t+1, :])
+            # here we should retrieve the initial condition
+            tensor_t0 = torch.Tensor(tensor_arr[idx_item, 0, :])
 
-        return {"nodes" : tensor, "edges" : self.edges, "edges_index" : self.edges_index, "nodes_next" : tensor_tp1}
+            # boundary condition
+            tensor_boundary_x__1 = torch.Tensor(tensor_arr[idx_item, :, 0])
+            tensor_boundary_x_1 = torch.Tensor(tensor_arr[idx_item, :, -1])
+
+        return {"image_result" : tensor, "edges" : self.edges, "edges_index" : self.edges_index,
+                                 "nodes_t0" : tensor_t0, "nodes_boundary_x__1" : tensor_boundary_x__1, "nodes_boundary_x_1" : tensor_boundary_x_1}
