@@ -42,7 +42,12 @@ def create_graph_burger(nb_space, delta_x, nb_nodes=None, nb_edges=None):
     if nb_edges is not None:
         assert nb_edges == (nb_space - 1) * 2, "The number of edges is not correct"
 
-    return edges, edges_index
+    # we add a mask to get the indication about the boundary condition
+    mask = np.ones((nb_space, 1), dtype=np.float32)
+    mask[0, 0] = 0
+    mask[-1, 0] = 0
+
+    return edges, edges_index, mask
 
 
 

@@ -54,9 +54,11 @@ class GnnFull(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         
-        nodes = batch["nodes"].squeeze(0).unsqueeze(1).float()
+        nodes = batch["nodes"].squeeze(0).float()
         edges = batch["edges"].squeeze(0).float()
         edge_index = batch["edges_index"].squeeze(0).long().T
+
+        mask = batch["mask"].squeeze(0).float()
 
         graph_t_1 = Data(x=nodes, edge_index=edge_index, edge_attr=edges)
 
@@ -67,7 +69,7 @@ class GnnFull(pl.LightningModule):
         graph_pred = Data(x=nodes_pred, edge_index=edge_index, edge_attr=edges)
 
         # compute loss
-        relative_loss = self.loss_function(graph_pred, graph_t_1)
+        relative_loss = self.loss_function(graph_pred, graph_t_1, mask)
 
         loss = self.loss_mse(relative_loss, torch.zeros_like(relative_loss))
 
@@ -75,7 +77,7 @@ class GnnFull(pl.LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx):
-        nodes = batch["nodes"].squeeze(0).unsqueeze(1).float()
+        nodes = batch["nodes"].squeeze(0).float()
         edges = batch["edges"].squeeze(0).float()
         edge_index = batch["edges_index"].squeeze(0).long().T
 
@@ -114,7 +116,7 @@ class GnnFull(pl.LightningModule):
             data_full = self.eval_dataset_full_image[id_sample]
 
             # get boundary conditions
-            nodes_t0 = data_full["nodes_t0"].unsqueeze(1).float()
+            nodes_t0 = data_full["nodes_t0"].float()
             edges = data_full["edges"].float()
             edges_index = data_full["edges_index"].long().T
             image_result = data_full["image_result"].float()
@@ -123,7 +125,7 @@ class GnnFull(pl.LightningModule):
             nodes_boundary_x_1 = data_full['nodes_boundary_x_1']
 
             result_prediction = torch.zeros_like(image_result)
-            result_prediction[0, :] = nodes_t0.squeeze()
+            result_prediction[0, :] = nodes_t0[:, 0]
 
             # we create the graph
             graph_current = Data(x=nodes_t0, edge_index=edges_index, edge_attr=edges)
@@ -169,7 +171,8 @@ class GnnFull(pl.LightningModule):
             # get run id
             try:
                 # call the logger to log the artifact
-                self.logger.experiment.log_image(key = "sample", images = [image_target,image_prediction], caption = ["train", "prediction"], step = self.current_epoch)
+                self.logger.log_image(key = "train", images = [image_target], caption = ["train"], step = self.current_epoch)
+                self.logger.log_image(key = "prediction", images = [image_prediction], caption = ["prediction"], step = self.current_epoch)
             except Exception as e:
                 print(e)
 
@@ -186,14 +189,14 @@ def train():
     delta_x = 2.0 / nb_space
     delta_t = 1.0 / nb_time # to check
 
-    edges, edges_index = create_graph_burger(nb_space, delta_x, nb_nodes=None, nb_edges=None)
+    edges, edges_index, mask = create_graph_burger(nb_space, delta_x, nb_nodes=None, nb_edges=None)
 
     # init dataset and dataloader
     path = "/app/data/1D_Burgers_Sols_Nu0.01.hdf5"
-    dataset = BurgerPDEDataset(path_hdf5=path, edges=edges, edges_index=edges_index)
+    dataset = BurgerPDEDataset(path_hdf5=path, edges=edges, edges_index=edges_index, mask=mask)
 
     # init dataset for full image
-    dataset_full_image = BurgerPDEDatasetFullSimulation(path_hdf5=path, edges=edges, edges_index=edges_index)
+    dataset_full_image = BurgerPDEDatasetFullSimulation(path_hdf5=path, edges=edges, edges_index=edges_index, mask=mask)
 
     # we take a subset of the dataset
     dataset = torch.utils.data.Subset(dataset, range(0, 40000))
@@ -208,7 +211,7 @@ def train():
     dataloader_test = DataLoader(test_dataset, batch_size=1, shuffle=True, num_workers=0)
 
     # init model
-    in_dim_node = 1
+    in_dim_node = 2
     in_dim_edge = 1
     out_dim = 1
 

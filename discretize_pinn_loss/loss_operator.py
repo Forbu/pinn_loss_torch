@@ -99,7 +99,7 @@ class BurgerDissipativeLossOperator(Module):
         self.temporal_derivative_operator = TemporalDerivativeOperator(self.index_derivative_node, self.delta_t)
         self.spatial_derivative_operator = SpatialDerivativeOperator(self.index_derivative_node, self.index_derivative_edge)
 
-    def forward(self, graph_t, graph_t_1):
+    def forward(self, graph_t, graph_t_1, mask=None):
         """
         TODO care about dim_node
         """
@@ -116,5 +116,8 @@ class BurgerDissipativeLossOperator(Module):
 
         # compute the loss
         loss = temporal_derivative + spatial_derivative * graph_t_1.x[:, self.index_derivative_node] - self.mu * second_order_derivative
+
+        if mask is not None:
+            loss = loss * mask
 
         return loss

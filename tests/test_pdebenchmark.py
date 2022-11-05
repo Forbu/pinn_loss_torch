@@ -18,17 +18,17 @@ def test_burgerpdedataset():
     batch_size = 1
 
     # now we can create the dataloader
-    edges, edges_index = create_graph_burger(nb_space, delta_x, nb_nodes=None, nb_edges=None)
+    edges, edges_index, mask = create_graph_burger(nb_space, delta_x, nb_nodes=None, nb_edges=None)
 
     path_hdf5 = "/app/data/1D_Burgers_Sols_Nu0.01.hdf5"
 
     # we create the dataset
-    dataset = BurgerPDEDataset(path_hdf5, edges, edges_index)
+    dataset = BurgerPDEDataset(path_hdf5, edges, edges_index, mask=mask)
     dataloader = DataLoader(dataset, batch_size=1, shuffle=True, num_workers=0)
 
     # we test the dataloader
     for i, data in enumerate(dataloader):
-        assert data["nodes"].shape == (batch_size, nb_space,)
+        assert data["nodes"].shape == (batch_size, nb_space, 2)
         assert data["edges"].shape == (batch_size, (nb_space - 1) * 2 , 1)
         assert data["edges_index"].shape == (batch_size, (nb_space - 1) * 2, 2)
         assert data["nodes_next"].shape == (batch_size, nb_space,)
@@ -48,7 +48,7 @@ def test_burgerpdedataset_fullsimu():
     batch_size = 1
 
     # now we can create the dataloader
-    edges, edges_index = create_graph_burger(nb_space, delta_x, nb_nodes=None, nb_edges=None)
+    edges, edges_index, mask = create_graph_burger(nb_space, delta_x, nb_nodes=None, nb_edges=None)
 
     path_hdf5 = "/app/data/1D_Burgers_Sols_Nu0.01.hdf5"
 
