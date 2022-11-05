@@ -169,8 +169,7 @@ class GnnFull(pl.LightningModule):
             # get run id
             try:
                 # call the logger to log the artifact
-                self.logger.experiment.log_image(image = image_target, artifact_file = "image_target.png", run_id=self.logger.run_id)
-                self.logger.experiment.log_image(image = image_prediction, artifact_file = "image_prediction.png", run_id=self.logger.run_id)
+                self.logger.experiment.log_image(key = "sample", images = [image_target,image_prediction], caption = ["train", "prediction"], step = self.current_epoch)
             except Exception as e:
                 print(e)
 
@@ -238,8 +237,13 @@ def train():
 
     # we create the trainer with the logger
     # init wandb key
-    wandb.init(project='performances_rssi', entity='forbu14')
-    os.environ['WANDB_API_KEY'] = "71d38d7113a35496e93c0cd6684b16faa4ba7554"
+    # read wandb_key/key.txt file to get the key
+    with open("/app/wandb_key/key.txt", "r") as f:
+        key = f.read()
+
+    os.environ['WANDB_API_KEY'] = key
+    wandb.init(project='1D_Burgers', entity='forbu14')
+    
 
     wandb_logger = pl.loggers.WandbLogger(project="1D_Burgers", name="GNN_1D_Burgers")
     trainer = pl.Trainer(max_epochs=1, logger=wandb_logger, gradient_clip_val=0.5, accumulate_grad_batches=8, val_check_interval = 0.05)

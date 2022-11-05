@@ -1,6 +1,9 @@
 plots/
 models_params/
 data/
+wandb/
+4/
+wandb_key/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
