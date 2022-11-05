@@ -67,18 +67,55 @@ def test_derivative_operator():
 
     delta_x = 2.0/nb_space
 
+    delta_t = 0.005
+
     # initial condition
     x  = torch.linspace(-1, 1, nb_space)
     u_0 = torch.sin(torch.pi*x)
 
+    u_0 = u_0.unsqueeze(1)
+    u_current = u_0
+
     # we create the graph
     edges, edges_index, mask = create_graph_burger(nb_space, delta_x)
 
-    # we create the graph
-    graph = Data(x=u_0, edge_index=edges_index, edge_attr=edges)
+    edges = torch.Tensor(edges)
+    edges_index = torch.Tensor(edges_index).long().T
 
-    # pass the graph to the model
-    out = derivative_operator(graph)
+    # plot the result
+    import matplotlib.pyplot as plt
+
+    for i in range(10):
+
+        # we create the graph
+        nodes = u_current
+
+        # boundary condition
+        nodes[0] = 0
+        nodes[-1] = 0
+
+        graph = Data(x=nodes, edge_index=edges_index, edge_attr=edges)
+
+        # we compute the derivative
+        with torch.no_grad():
+            u_derivative = derivative_operator(graph).reshape((-1, 1)) 
+
+        # we compute the new value
+        u_new = u_current + delta_t * u_derivative * u_current
+
+        plt.plot(x, u_derivative.detach().numpy(), label=f"t={i*delta_t}")
+
+        u_current = u_new
+
+    plt.legend()
+
+    plt.show()
+
+    # save fig
+    plt.savefig("test_derivative_operator.png")
+
+
+    assert False
 
     assert out.shape == (nb_space,)
 
