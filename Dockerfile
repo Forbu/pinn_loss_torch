@@ -15,7 +15,7 @@ RUN pip install torch-scatter torch-sparse torch-cluster torch-spline-conv torch
 RUN pip install pytorch_lightning
 
 # install mlflow (for metrics tracking)
-RUN pip install mlflow==1.27.0
+# RUN pip install mlflow==1.27.0
 
 # install pytest (for testing)
 RUN pip install pytest
@@ -33,6 +33,9 @@ RUN pip install h5py
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -qq -y git
 RUN git config --global user.name "Adrien B"
 RUN git config --global user.email "forbu14@gmail.com"
+
+# install wandb
+RUN pip install wandb
 
 # création des dossiers pour stocker les données
 RUN mkdir /app

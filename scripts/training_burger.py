@@ -30,12 +30,14 @@ import torch
 from torch.utils.data import DataLoader
 from torch_geometric.data import Data
 
-import mlflow
-
 import hashlib
 import datetime
 
-mlflow.set_tracking_uri("http://localhost:5000")
+import os
+
+from pytorch_lightning.loggers import WandbLogger
+
+import wandb
 
 class GnnFull(pl.LightningModule):
     def __init__(self, model_gnn, loss_function, eval_dataset_full_image=None):
@@ -231,14 +233,16 @@ def train():
     # we create the burger function
     burger_loss = BurgerDissipativeLossOperator(index_derivative_node=0, index_derivative_edge=0, delta_t=delta_t, mu=0.01)
 
-
-
     # we create the trainer
     gnn_full = GnnFull(model, burger_loss, eval_dataset_full_image=dataset_full_image)
 
     # we create the trainer with the logger
-    mlflow_logger = pl.loggers.MLFlowLogger(experiment_name="burger", tracking_uri="http://localhost:5000")
-    trainer = pl.Trainer(max_epochs=1, logger=mlflow_logger, gradient_clip_val=0.5, accumulate_grad_batches=8, val_check_interval = 0.05)
+    # init wandb key
+    wandb.init(project='performances_rssi', entity='forbu14')
+    os.environ['WANDB_API_KEY'] = "71d38d7113a35496e93c0cd6684b16faa4ba7554"
+
+    wandb_logger = pl.loggers.WandbLogger(project="1D_Burgers", name="GNN_1D_Burgers")
+    trainer = pl.Trainer(max_epochs=1, logger=wandb_logger, gradient_clip_val=0.5, accumulate_grad_batches=8, val_check_interval = 0.05)
 
     # we train
     trainer.fit(gnn_full, dataloader_train, dataloader_test)
