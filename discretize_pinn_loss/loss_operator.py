@@ -118,6 +118,6 @@ class BurgerDissipativeLossOperator(Module):
         loss = temporal_derivative + spatial_derivative * graph_t_1.x[:, self.index_derivative_node] - self.mu * second_order_derivative
 
         if mask is not None:
-            loss = loss * mask
+            loss = loss * mask.squeeze()
 
         return loss

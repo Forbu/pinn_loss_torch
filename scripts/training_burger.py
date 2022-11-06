@@ -35,8 +35,6 @@ import datetime
 
 import os
 
-from pytorch_lightning.loggers import WandbLogger
-
 import wandb
 
 import matplotlib.pyplot as plt
@@ -140,11 +138,14 @@ class GnnFull(pl.LightningModule):
 
         ############## Checking result with a simple sample ####################
         # we generate a simple sample
-        nb_space = nodes_t0.shape[0]
-        nodes_t0 = torch.rand((nb_space, 1)) - 0.5
-        nodes_t0 = torch.cat([nodes_t0, mask], dim=1)
+        #nb_space = nodes_t0.shape[0]
+        #nodes_t0 = torch.rand((nb_space, 1)) - 0.5
+        #nodes_t0 = torch.cat([nodes_t0, mask], dim=1)
 
         #self.recursive_simulation(nodes_t0, edges, edges_index, image_result, mask, nodes_boundary_x__1, nodes_boundary_x_1, name_simulation="simulation_random")
+
+        ############## Checking the coherence of the provided solution to the burger loss equation ####################
+        self.check_burger_loss_equation(image_result, mask, edges_index, edges)
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-3)
@@ -154,6 +155,8 @@ class GnnFull(pl.LightningModule):
 
         result_prediction = torch.zeros_like(image_result)
         result_prediction[0, :] = nodes_t0[:, 0]
+
+        burger_loss_tot = torch.zeros_like(image_result)
 
         # we create the graph
         graph_current = Data(x=nodes_t0, edge_index=edges_index, edge_attr=edges)
@@ -175,16 +178,27 @@ class GnnFull(pl.LightningModule):
             # we create the two graphs
             graph_pred = Data(x=nodes_pred, edge_index=edges_index, edge_attr=edges)
 
+            # compute the burger loss
+            with torch.no_grad():
+                relative_loss = self.loss_function(graph_pred, graph_current)
+
             # we update the graph
             graph_current = graph_pred
 
             # we update the result
             result_prediction[t, :] = nodes_pred[:, 0]
 
+            # we update the burger loss
+            burger_loss_tot[t, :] = relative_loss
+
         # we compute the loss
         loss = self.loss_mse(result_prediction, image_result)
 
         self.log("val_loss_full_image", loss)
+
+        loss_burger_tot = self.loss_mse(burger_loss_tot, torch.zeros_like(burger_loss_tot))
+
+        self.log("val_loss_burger_pred", loss_burger_tot)
 
         # we log the two images (ground truth and prediction)
         image_target = image_result.detach().cpu().numpy()
@@ -218,6 +232,39 @@ class GnnFull(pl.LightningModule):
             self.logger.log_image(key = "prediction_" + name_simulation, images = [image_name_prediction], step = self.current_epoch)
         except Exception as e:
             print(e)
+
+    def check_burger_loss_equation(self, image_result, mask=None, edges_index=None, edges_attr=None):
+
+        # we compute the burger loss equation for the corresponding image by just computing the burger loss for each time step
+
+        nb_space = image_result.shape[1]
+        nb_time = image_result.shape[0]
+
+        # we compute the loss for each time step
+        loss_burger = torch.zeros((nb_time, nb_space))
+
+        for t in range(1, nb_time):
+            # we compute the loss for the current time step
+            # 1. define graph for t and t-1
+            nodes_t0 = image_result[t-1, :].reshape(-1, 1)
+            # cat with mask
+            nodes_t0 = torch.cat([nodes_t0, mask], axis = 1)
+
+            nodes_t1 = image_result[t, :].reshape(-1, 1)
+            # cat with mask
+            nodes_t1 = torch.cat([nodes_t1, mask], axis = 1)
+
+            # 2. transform into graph
+            graph_t0 = Data(x=nodes_t0, edge_index=edges_index, edge_attr=edges_attr)
+            graph_t1 = Data(x=nodes_t1, edge_index=edges_index, edge_attr=edges_attr)
+
+            # 3. compute the loss
+            loss_burger[t, :] = self.loss_function(graph_t1, graph_t0, mask)
+
+        # we compute the mean loss
+        loss_burger_full = self.loss_mse(loss_burger, torch.zeros_like(loss_burger))
+
+        self.log("val_loss_burger_perfect_simulation", loss_burger_full)
 
 def train():
 
@@ -263,7 +310,7 @@ def train():
             hidden_dim_node=32, hidden_dim_edge=32,
             hidden_layers_node=2, hidden_layers_edge=2,
             #graph processor attributes:
-            mp_iterations=5,
+            mp_iterations=12,
             hidden_dim_processor_node=32, hidden_dim_processor_edge=32, 
             hidden_layers_processor_node=2, hidden_layers_processor_edge=2,
             mlp_norm_type="LayerNorm",
@@ -287,7 +334,9 @@ def train():
     wandb.init(project='1D_Burgers', entity='forbu14')
     
     wandb_logger = pl.loggers.WandbLogger(project="1D_Burgers", name="GNN_1D_Burgers")
-    trainer = pl.Trainer(max_epochs=3, logger=wandb_logger, gradient_clip_val=0.5, accumulate_grad_batches=8, val_check_interval = 0.20)
+    trainer = pl.Trainer(max_epochs=10, logger=wandb_logger, gradient_clip_val=0.5, accumulate_grad_batches=8, val_check_interval = 0.1)
+
+
 
     # we train
     trainer.fit(gnn_full, dataloader_train, dataloader_test)
