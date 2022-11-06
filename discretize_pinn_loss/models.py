@@ -51,6 +51,7 @@ class GNN(Module):
 
     def forward(self, graph):
         out = self.node_encoder(graph.x)
+
         edge_attr = self.edge_encoder(graph.edge_attr)
         out, _ = self.graph_processor(out, graph.edge_index, edge_attr)
         out = self.node_decoder(out) #paper: corresponds to velocity or acceleration at this point; loss is based on one of these, not the actual state

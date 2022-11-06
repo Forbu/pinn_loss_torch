@@ -27,8 +27,7 @@ from discretize_pinn_loss.loss_operator import BurgerDissipativeLossOperator
 import pytorch_lightning as pl
 
 import torch
-from torch.utils.data import DataLoader
-from torch_geometric.data import Data
+from torch_geometric.data import Data, DataLoader
 
 import hashlib
 import datetime
@@ -38,6 +37,8 @@ import os
 import wandb
 
 import matplotlib.pyplot as plt
+
+torch.manual_seed(42)
 
 class GnnFull(pl.LightningModule):
     def __init__(self, model_gnn, loss_function, eval_dataset_full_image=None):
@@ -57,13 +58,11 @@ class GnnFull(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         
-        nodes = batch["nodes"].squeeze(0).float()
-        edges = batch["edges"].squeeze(0).float()
-        edge_index = batch["edges_index"].squeeze(0).long().T
-
-        mask = batch["mask"].squeeze(0).float()
-
-        graph_t_1 = Data(x=nodes, edge_index=edge_index, edge_attr=edges)
+        graph_t_1 = batch
+        edge_index = graph_t_1.edge_index
+        edges = graph_t_1.edge_attr
+        nodes = graph_t_1.x
+        mask = graph_t_1.mask
 
         # forward pass
         nodes_pred = self.forward(graph_t_1)
@@ -88,17 +87,16 @@ class GnnFull(pl.LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx):
-        nodes = batch["nodes"].squeeze(0).float()
-        edges = batch["edges"].squeeze(0).float()
-        edge_index = batch["edges_index"].squeeze(0).long().T
 
-        graph_t_1 = Data(x=nodes, edge_index=edge_index, edge_attr=edges)
+        graph_t_1 = batch
+
+        print("graph_t_1", graph_t_1)
 
         # forward pass
         nodes_pred = self.forward(graph_t_1)
 
         # we create the two graphs
-        graph_pred = Data(x=nodes_pred, edge_index=edge_index, edge_attr=edges)
+        graph_pred = Data(x=nodes_pred, edge_index=graph_t_1.edge_index, edge_attr=graph_t_1.edge_attr)
 
         # compute loss
         relative_loss = self.loss_function(graph_pred, graph_t_1)
@@ -275,6 +273,8 @@ def train():
     delta_x = 2.0 / nb_space
     delta_t = 1.0 / nb_time # to check
 
+    batch_size = 16
+
     edges, edges_index, mask = create_graph_burger(nb_space, delta_x, nb_nodes=None, nb_edges=None)
 
     # init dataset and dataloader
@@ -293,8 +293,8 @@ def train():
 
     train_dataset, test_dataset = torch.utils.data.random_split(dataset, [train_size, test_size])
 
-    dataloader_train = DataLoader(train_dataset, batch_size=1, shuffle=True, num_workers=0)
-    dataloader_test = DataLoader(test_dataset, batch_size=1, shuffle=True, num_workers=0)
+    dataloader_train = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=0)
+    dataloader_test = DataLoader(test_dataset, batch_size=batch_size, shuffle=True, num_workers=0)
 
     # init model
     in_dim_node = 2
@@ -334,7 +334,7 @@ def train():
     wandb.init(project='1D_Burgers', entity='forbu14')
     
     wandb_logger = pl.loggers.WandbLogger(project="1D_Burgers", name="GNN_1D_Burgers")
-    trainer = pl.Trainer(max_epochs=10, logger=wandb_logger, gradient_clip_val=0.5, accumulate_grad_batches=8, val_check_interval = 0.1)
+    trainer = pl.Trainer(max_epochs=10, logger=wandb_logger, gradient_clip_val=0.5, accumulate_grad_batches=2)
 
     # we train
     trainer.fit(gnn_full, dataloader_train, dataloader_test)

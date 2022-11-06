@@ -6,11 +6,15 @@ Module where we use the PDE dataset to create our dataloader
 # import pytorch dataset and dataloader
 import torch
 from torch.utils.data import DataLoader, Dataset
+from torch_geometric.data import Data
+from torch_geometric.data import Dataset as GeometricDataset
 import h5py
 import numpy as np
 
-class BurgerPDEDataset(Dataset):
+class BurgerPDEDataset(GeometricDataset):
     def __init__(self, path_hdf5, edges, edges_index, mask=None):
+        super(BurgerPDEDataset, self).__init__()
+
         self.path_hdf5 = path_hdf5
         self.edges = edges
         self.edges_index = edges_index
@@ -55,7 +59,10 @@ class BurgerPDEDataset(Dataset):
 
             tensor_tp1 = np.array(tensor_arr[idx_item, idx_t+1, :])
 
-        return {"nodes" : tensor, "edges" : self.edges, "edges_index" : self.edges_index, "nodes_next" : tensor_tp1, "mask" : self.mask}
+        graph = Data(x=torch.tensor(tensor, dtype=torch.float32), edge_attr=torch.tensor(self.edges).float(),
+                                                         edge_index=torch.tensor(self.edges_index).T.long(), mask=torch.tensor(self.mask).float())
+
+        return graph
 
 class BurgerPDEDatasetFullSimulation(Dataset):
     def __init__(self, path_hdf5, edges, edges_index, mask=None):
