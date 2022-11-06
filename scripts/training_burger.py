@@ -122,15 +122,15 @@ class GnnFull(pl.LightningModule):
         data_full = self.eval_dataset_full_image[id_sample]
 
         # get boundary conditions
-        nodes_t0 = data_full["nodes_t0"].float()
-        edges = data_full["edges"].float()
-        edges_index = data_full["edges_index"].long().T
-        image_result = data_full["image_result"].float()
+        nodes_t0 = data_full["nodes_t0"].float().to(self.device)
+        edges = data_full["edges"].float().to(self.device)
+        edges_index = data_full["edges_index"].long().T.to(self.device)
+        image_result = data_full["image_result"].float().to(self.device)
 
-        mask = data_full["mask"].float()
+        mask = data_full["mask"].float().to(self.device)
 
-        nodes_boundary_x__1 = data_full['nodes_boundary_x__1']
-        nodes_boundary_x_1 = data_full['nodes_boundary_x_1']
+        nodes_boundary_x__1 = data_full['nodes_boundary_x__1'].to(self.device)
+        nodes_boundary_x_1 = data_full['nodes_boundary_x_1'].to(self.device)
 
         self.recursive_simulation(nodes_t0, edges, edges_index, image_result, mask, nodes_boundary_x__1, nodes_boundary_x_1, name_simulation="simulation_true_value")
 
