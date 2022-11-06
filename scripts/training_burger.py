@@ -39,6 +39,8 @@ from pytorch_lightning.loggers import WandbLogger
 
 import wandb
 
+import matplotlib.pyplot as plt
+
 class GnnFull(pl.LightningModule):
     def __init__(self, model_gnn, loss_function, eval_dataset_full_image=None):
         super().__init__()
@@ -49,7 +51,10 @@ class GnnFull(pl.LightningModule):
 
         self.loss_mse = torch.nn.MSELoss()
 
+        self.baseline = torch.nn.Identity()
+
     def forward(self, graph):
+
         return self.model(graph)
 
     def training_step(self, batch, batch_idx):
@@ -68,12 +73,20 @@ class GnnFull(pl.LightningModule):
         # we create the two graphs
         graph_pred = Data(x=nodes_pred, edge_index=edge_index, edge_attr=edges)
 
+        graph_baseline = Data(x=self.baseline(nodes), edge_index=edge_index, edge_attr=edges)
+
         # compute loss
         relative_loss = self.loss_function(graph_pred, graph_t_1, mask)
 
+        relative_loss_baseline = self.loss_function(graph_baseline, graph_t_1, mask)
+
         loss = self.loss_mse(relative_loss, torch.zeros_like(relative_loss))
 
+        loss_baseline = self.loss_mse(relative_loss_baseline, torch.zeros_like(relative_loss_baseline))
+
         self.log("train_loss", loss)
+        self.log("train_loss_baseline", loss_baseline)
+
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -101,88 +114,110 @@ class GnnFull(pl.LightningModule):
     # on validation epoch end
     def validation_epoch_end(self, outputs):
 
-
         if self.eval_dataset_full_image is None:
             return
 
-        # inference mode
-        with torch.no_grad():
-            # here we should retrieve the full image from the dataset and compute the result with the help of the model (recursively)
-            # we should then compute the loss between the prediction and the ground truth and log the artifact
-            # we should also log the loss
-            
-            # we choose a random sample
-            id_sample = torch.randint(0, len(self.eval_dataset_full_image), (1,)).item()
-            data_full = self.eval_dataset_full_image[id_sample]
+        # here we should retrieve the full image from the dataset and compute the result with the help of the model (recursively)
+        # we should then compute the loss between the prediction and the ground truth and log the artifact
+        # we should also log the loss
+        ############## Checking result with a random sample ####################
+        # we choose a random sample
+        id_sample = torch.randint(0, len(self.eval_dataset_full_image), (1,)).item()
+        data_full = self.eval_dataset_full_image[id_sample]
 
-            # get boundary conditions
-            nodes_t0 = data_full["nodes_t0"].float()
-            edges = data_full["edges"].float()
-            edges_index = data_full["edges_index"].long().T
-            image_result = data_full["image_result"].float()
+        # get boundary conditions
+        nodes_t0 = data_full["nodes_t0"].float()
+        edges = data_full["edges"].float()
+        edges_index = data_full["edges_index"].long().T
+        image_result = data_full["image_result"].float()
 
-            mask = data_full["mask"].float()
+        mask = data_full["mask"].float()
 
-            nodes_boundary_x__1 = data_full['nodes_boundary_x__1']
-            nodes_boundary_x_1 = data_full['nodes_boundary_x_1']
+        nodes_boundary_x__1 = data_full['nodes_boundary_x__1']
+        nodes_boundary_x_1 = data_full['nodes_boundary_x_1']
 
-            result_prediction = torch.zeros_like(image_result)
-            result_prediction[0, :] = nodes_t0[:, 0]
+        self.recursive_simulation(nodes_t0, edges, edges_index, image_result, mask, nodes_boundary_x__1, nodes_boundary_x_1, name_simulation="simulation_true_value")
 
-            # we create the graph
-            graph_current = Data(x=nodes_t0, edge_index=edges_index, edge_attr=edges)
+        ############## Checking result with a simple sample ####################
+        # we generate a simple sample
+        nb_space = nodes_t0.shape[0]
+        nodes_t0 = torch.rand((nb_space, 1))
+        nodes_t0 = torch.cat([nodes_t0, mask], dim=1)
 
-            # now we can apply the model recursively to get the full image
-            nb_time = image_result.shape[0]
-
-            for t in range(1, nb_time):
-                # forward pass
-                nodes_pred = self.forward(graph_current)
-
-                # we add the boundary conditions
-                nodes_pred[0, 0] = nodes_boundary_x__1[t]
-                nodes_pred[-1, 0] = nodes_boundary_x_1[t]
-
-                nodes_pred = torch.cat([nodes_pred, mask], axis = 1)
-
-                # we create the two graphs
-                graph_pred = Data(x=nodes_pred, edge_index=edges_index, edge_attr=edges)
-
-                # we update the graph
-                graph_current = graph_pred
-
-                # we update the result
-                result_prediction[t, :] = nodes_pred[:, 0]
-
-            # we compute the loss
-            loss = self.loss_mse(result_prediction, image_result)
-
-            self.log("val_loss_full_image", loss)
-
-            # we log the two images (ground truth and prediction)
-            image_target = image_result.detach().cpu().numpy()
-            image_prediction = result_prediction.detach().cpu().numpy()
-
-            # we have to normalize thes images to be able to log them
-            # we normalize the image to have all the values between 0 and 1
-            max_ = max(image_target.max(), image_prediction.max())
-            
-            min_ = min(image_target.min(), image_prediction.min())
-
-            image_target = (image_target - min_) / (max_ - min_)
-            image_prediction = (image_prediction - min_) / (max_ - min_)
-
-            # get run id
-            try:
-                # call the logger to log the artifact
-                self.logger.log_image(key = "train", images = [image_target], caption = ["train"], step = self.current_epoch)
-                self.logger.log_image(key = "prediction", images = [image_prediction], caption = ["prediction"], step = self.current_epoch)
-            except Exception as e:
-                print(e)
+        self.recursive_simulation(nodes_t0, edges, edges_index, image_result, mask, nodes_boundary_x__1, nodes_boundary_x_1, name_simulation="simulation_random")
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-3)
         return optimizer
+
+    def recursive_simulation(self, nodes_t0, edges, edges_index, image_result, mask, nodes_boundary_x__1, nodes_boundary_x_1, name_simulation="simulation"):
+
+        result_prediction = torch.zeros_like(image_result)
+        result_prediction[0, :] = nodes_t0[:, 0]
+
+        # we create the graph
+        graph_current = Data(x=nodes_t0, edge_index=edges_index, edge_attr=edges)
+
+        # now we can apply the model recursively to get the full image
+        nb_time = image_result.shape[0]
+
+        # forward pass
+        for t in range(1, nb_time):
+            with torch.no_grad():
+                nodes_pred = self.forward(graph_current)
+
+            # we add the boundary conditions
+            nodes_pred[0, 0] = nodes_boundary_x__1[t]
+            nodes_pred[-1, 0] = nodes_boundary_x_1[t]
+
+            nodes_pred = torch.cat([nodes_pred, mask], axis = 1)
+
+            # we create the two graphs
+            graph_pred = Data(x=nodes_pred, edge_index=edges_index, edge_attr=edges)
+
+            # we update the graph
+            graph_current = graph_pred
+
+            # we update the result
+            result_prediction[t, :] = nodes_pred[:, 0]
+
+        # we compute the loss
+        loss = self.loss_mse(result_prediction, image_result)
+
+        self.log("val_loss_full_image", loss)
+
+        # we log the two images (ground truth and prediction)
+        image_target = image_result.detach().cpu().numpy()
+        image_prediction = result_prediction.detach().cpu().numpy()
+        
+        # get min max 
+        min_val = min(image_target.min(), image_prediction.min())
+        max_val = max(image_target.max(), image_prediction.max())
+
+
+        image_name_target = f"images/{name_simulation}_target.png"
+        image_name_prediction = f"images/{name_simulation}_prediction.png"
+
+        # we generate the png files using matplotlib
+        plt.figure(figsize=(20, 20))
+        plt.imshow(image_target, vmin=min_val, vmax=max_val)
+        plt.colorbar()
+        plt.savefig(image_name_target)
+        plt.close()
+
+        plt.figure(figsize=(20, 20))
+        plt.imshow(image_prediction, vmin=min_val, vmax=max_val)
+        plt.colorbar()
+        plt.savefig(image_name_prediction)
+        plt.close()
+
+        # get run id
+        try:
+            # call the logger to log the artifact
+            self.logger.log_image(key = "train", images = [image_name_target], step = self.current_epoch)
+            self.logger.log_image(key = "prediction", images = [image_name_prediction], step = self.current_epoch)
+        except Exception as e:
+            print(e)
 
 def train():
 
@@ -224,16 +259,16 @@ def train():
             in_dim_node, #includes data window, node type, inlet velocity 
             in_dim_edge, #distance and relative coordinates
             out_dim, #includes x-velocity, y-velocity, volume fraction, pressure (or a subset)
-            out_dim_node=64, out_dim_edge=64, 
-            hidden_dim_node=64, hidden_dim_edge=64,
+            out_dim_node=32, out_dim_edge=32, 
+            hidden_dim_node=32, hidden_dim_edge=32,
             hidden_layers_node=2, hidden_layers_edge=2,
             #graph processor attributes:
             mp_iterations=5,
-            hidden_dim_processor_node=64, hidden_dim_processor_edge=64, 
+            hidden_dim_processor_node=32, hidden_dim_processor_edge=32, 
             hidden_layers_processor_node=2, hidden_layers_processor_edge=2,
-            mlp_norm_type='LayerNorm',
+            mlp_norm_type="LayerNorm",
             #decoder attributes:
-            hidden_dim_decoder=64, hidden_layers_decoder=2,
+            hidden_dim_decoder=32, hidden_layers_decoder=2,
             output_type='acceleration')
 
     # we create the burger function
@@ -251,9 +286,8 @@ def train():
     os.environ['WANDB_API_KEY'] = key
     wandb.init(project='1D_Burgers', entity='forbu14')
     
-
     wandb_logger = pl.loggers.WandbLogger(project="1D_Burgers", name="GNN_1D_Burgers")
-    trainer = pl.Trainer(max_epochs=1, logger=wandb_logger, gradient_clip_val=0.5, accumulate_grad_batches=8, val_check_interval = 0.05)
+    trainer = pl.Trainer(max_epochs=3, logger=wandb_logger, gradient_clip_val=0.5, accumulate_grad_batches=8, val_check_interval = 0.20)
 
     # we train
     trainer.fit(gnn_full, dataloader_train, dataloader_test)
