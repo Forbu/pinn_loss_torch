@@ -141,10 +141,10 @@ class GnnFull(pl.LightningModule):
         ############## Checking result with a simple sample ####################
         # we generate a simple sample
         nb_space = nodes_t0.shape[0]
-        nodes_t0 = torch.rand((nb_space, 1))
+        nodes_t0 = torch.rand((nb_space, 1)) - 0.5
         nodes_t0 = torch.cat([nodes_t0, mask], dim=1)
 
-        self.recursive_simulation(nodes_t0, edges, edges_index, image_result, mask, nodes_boundary_x__1, nodes_boundary_x_1, name_simulation="simulation_random")
+        #self.recursive_simulation(nodes_t0, edges, edges_index, image_result, mask, nodes_boundary_x__1, nodes_boundary_x_1, name_simulation="simulation_random")
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-3)
@@ -214,8 +214,8 @@ class GnnFull(pl.LightningModule):
         # get run id
         try:
             # call the logger to log the artifact
-            self.logger.log_image(key = "train", images = [image_name_target], step = self.current_epoch)
-            self.logger.log_image(key = "prediction", images = [image_name_prediction], step = self.current_epoch)
+            self.logger.log_image(key = "train_" + name_simulation, images = [image_name_target], step = self.current_epoch)
+            self.logger.log_image(key = "prediction_" + name_simulation, images = [image_name_prediction], step = self.current_epoch)
         except Exception as e:
             print(e)
 
