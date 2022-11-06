@@ -4,6 +4,9 @@ data/
 wandb/
 4/
 wandb_key/
+1D_Burgers/
+images/
+notebooks/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
