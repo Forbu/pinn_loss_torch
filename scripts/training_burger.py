@@ -336,16 +336,11 @@ def train():
     wandb_logger = pl.loggers.WandbLogger(project="1D_Burgers", name="GNN_1D_Burgers")
     trainer = pl.Trainer(max_epochs=10, logger=wandb_logger, gradient_clip_val=0.5, accumulate_grad_batches=8, val_check_interval = 0.1)
 
-
-
     # we train
     trainer.fit(gnn_full, dataloader_train, dataloader_test)
 
     # we save the model
     torch.save(trainer.model.state_dict(), "models_params/burger_model.pt")
-
-def eval_model_recurssive_mode():
-    pass
 
 if __name__ == "__main__":
     train()
