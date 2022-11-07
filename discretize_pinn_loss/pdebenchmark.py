@@ -60,7 +60,7 @@ class BurgerPDEDataset(GeometricDataset):
             tensor_tp1 = np.array(tensor_arr[idx_item, idx_t+1, :])
 
         graph = Data(x=torch.tensor(tensor, dtype=torch.float32), edge_attr=torch.tensor(self.edges).float(),
-                                                         edge_index=torch.tensor(self.edges_index).T.long(), mask=torch.tensor(self.mask).float())
+                    edge_index=torch.tensor(self.edges_index).T.long(), mask=torch.tensor(self.mask).float(), x_next=torch.tensor(tensor_tp1).float())
 
         return graph
 

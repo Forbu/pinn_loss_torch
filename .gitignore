@@ -7,6 +7,7 @@ wandb_key/
 1D_Burgers/
 images/
 notebooks/
+checkpoints/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
