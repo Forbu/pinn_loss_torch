@@ -16,8 +16,8 @@ def create_graph_burger(nb_space, delta_x, nb_nodes=None, nb_edges=None):
     # the second (nb_space - 1) edges are the edges that goes from bottom to top
     edges = np.zeros(((nb_space - 1) * 2, 1), dtype=np.float32)
 
-    edges[:nb_space - 1, 0] = delta_x # positive edges
-    edges[nb_space - 1:, 0] = -delta_x # negative edges
+    edges[:(nb_space - 1), 0] = delta_x # positive edges
+    edges[(nb_space - 1):, 0] = -delta_x # negative edges
 
     # now we can create the edges_index values
     edges_index = np.zeros(((nb_space - 1) * 2, 2), dtype=np.int32)
@@ -48,8 +48,6 @@ def create_graph_burger(nb_space, delta_x, nb_nodes=None, nb_edges=None):
     mask[-1, 0] = 0
 
     return edges, edges_index, mask
-
-
 
 def create_burger_dataset(nb_space, delta_x, batch_size=1, size_dataset=20000):
     """

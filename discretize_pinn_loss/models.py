@@ -29,6 +29,7 @@ class GNN(Module):
             hidden_dim_decoder=128, hidden_layers_decoder=2,
             output_type='acceleration',
             out_index = [0],
+            delta_t = 0.005,
             #other:
             **kwargs):
 
@@ -51,6 +52,7 @@ class GNN(Module):
         self.output_type = output_type
 
         self.out_index = out_index
+        self.delta_t = delta_t
 
     def forward(self, graph):
 
@@ -61,9 +63,9 @@ class GNN(Module):
 
         edge_attr = self.edge_encoder(edge_attr)
         out, _ = self.graph_processor(out, graph.edge_index, edge_attr)
-        out = self.node_decoder(out) #paper: corresponds to velocity or acceleration at this point; loss is based on one of these, not the actual state
+        out = self.node_decoder(out) 
 
-        return out + graph.x[:, self.out_index] #paper: corresponds to state at this point
+        return out * self.delta_t + graph.x[:, self.out_index] 
 
 class MLP(nn.Module):
     #MLP with LayerNorm
