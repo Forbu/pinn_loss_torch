@@ -69,7 +69,7 @@ class BurgerPDEDataset(GeometricDataset):
         return graph
 
 
-class BurgerPDEDataset_clasic(Dataset):
+class BurgerPDEDataset_classic(Dataset):
     """
     This is a PDE dataset that we use to create our dataloader
     This is in graph mode using the torch geometric library
@@ -115,9 +115,9 @@ class BurgerPDEDataset_clasic(Dataset):
             tensor = np.array(tensor_arr[idx_item, idx_t, :])
 
             # we concat the tensor with the mask
-            tensor = np.concatenate([tensor.reshape((-1, 1)), self.mask], axis=1)
+            tensor = tensor.reshape((-1, 1))
 
-            tensor_tp1 = np.array(tensor_arr[idx_item, idx_t+1, :])
+            tensor_tp1 = np.array(tensor_arr[idx_item, idx_t+1, :]).reshape((-1, 1))
 
         return torch.tensor(tensor, dtype=torch.float32), torch.tensor(tensor_tp1, dtype=torch.float32)
 
