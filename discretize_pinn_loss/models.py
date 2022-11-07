@@ -34,6 +34,9 @@ class GNN(Module):
 
         super(GNN, self).__init__()
 
+        # batch norm 1D for normalizing edge input
+        self.edge_normalizer = nn.BatchNorm1d(in_dim_edge)
+
         self.node_encoder = MLP(in_dim_node, out_dim_node, 
             hidden_dim_node, hidden_layers_node, 
             mlp_norm_type)
@@ -50,9 +53,13 @@ class GNN(Module):
         self.out_index = out_index
 
     def forward(self, graph):
+
+        # normalize edge input
+        edge_attr = self.edge_normalizer(graph.edge_attr)
+
         out = self.node_encoder(graph.x)
 
-        edge_attr = self.edge_encoder(graph.edge_attr)
+        edge_attr = self.edge_encoder(edge_attr)
         out, _ = self.graph_processor(out, graph.edge_index, edge_attr)
         out = self.node_decoder(out) #paper: corresponds to velocity or acceleration at this point; loss is based on one of these, not the actual state
 
