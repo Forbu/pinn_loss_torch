@@ -6,8 +6,13 @@ USER root
 RUN apt update -y && \
     apt install -y build-essential && \
     apt install -y gcc && \
-	DEBIAN_FRONTEND="noninteractive" TZ="Europe/Paris" && \
-    pip install --upgrade pip
+	DEBIAN_FRONTEND="noninteractive" TZ="Europe/Paris"
+
+# install python 3.9
+RUN apt install python3.9 python3.9-dev -y
+
+# install pip 3.9
+RUN apt install python3-pip -y
 
 RUN pip install torch-scatter torch-sparse torch-cluster torch-spline-conv torch-geometric -f https://data.pyg.org/whl/torch-1.12.1+cu113.html
 

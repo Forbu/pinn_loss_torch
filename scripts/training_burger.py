@@ -61,6 +61,9 @@ class GnnFull(pl.LightningModule):
         graph_t_1 = batch
         edge_index = graph_t_1.edge_index
         edges = graph_t_1.edge_attr
+
+        print(edges)
+
         nodes = graph_t_1.x
         mask = graph_t_1.mask
 
@@ -74,23 +77,22 @@ class GnnFull(pl.LightningModule):
 
         # compute loss
         relative_loss = self.loss_function(graph_pred, graph_t_1, mask)
+        loss = self.loss_mse(relative_loss, torch.zeros_like(relative_loss))
+        self.log("train_loss", loss)
 
         relative_loss_baseline = self.loss_function(graph_baseline, graph_t_1, mask)
-
-        loss = self.loss_mse(relative_loss, torch.zeros_like(relative_loss))
-
         loss_baseline = self.loss_mse(relative_loss_baseline, torch.zeros_like(relative_loss_baseline))
-
-        self.log("train_loss", loss)
         self.log("train_loss_baseline", loss_baseline)
+
+        print("train_loss", loss)
+        print("train_loss_baseline", loss_baseline)
 
         return loss
 
     def validation_step(self, batch, batch_idx):
 
         graph_t_1 = batch
-
-        print("graph_t_1", graph_t_1)
+        mask = graph_t_1.mask
 
         # forward pass
         nodes_pred = self.forward(graph_t_1)
@@ -99,7 +101,7 @@ class GnnFull(pl.LightningModule):
         graph_pred = Data(x=nodes_pred, edge_index=graph_t_1.edge_index, edge_attr=graph_t_1.edge_attr)
 
         # compute loss
-        relative_loss = self.loss_function(graph_pred, graph_t_1)
+        relative_loss = self.loss_function(graph_pred, graph_t_1, mask)
 
         loss = self.loss_mse(relative_loss, torch.zeros_like(relative_loss))
 
@@ -108,7 +110,7 @@ class GnnFull(pl.LightningModule):
         return loss
 
     # on validation epoch end
-    def validation_epoch_end(self, outputs):
+    def validation_epoch_end_(self, outputs):
 
         if self.eval_dataset_full_image is None:
             return
@@ -264,7 +266,7 @@ class GnnFull(pl.LightningModule):
 
         self.log("val_loss_burger_perfect_simulation", loss_burger_full)
 
-def train():
+def train(load_from_checkpoint=True):
 
     # create domain
     nb_space = 1024
@@ -285,7 +287,7 @@ def train():
     dataset_full_image = BurgerPDEDatasetFullSimulation(path_hdf5=path, edges=edges, edges_index=edges_index, mask=mask)
 
     # we take a subset of the dataset
-    dataset = torch.utils.data.Subset(dataset, range(0, 40000))
+    dataset = torch.utils.data.Subset(dataset, range(0, 100))
 
     # divide into train and test
     train_size = int(0.95 * len(dataset))
@@ -293,7 +295,7 @@ def train():
 
     train_dataset, test_dataset = torch.utils.data.random_split(dataset, [train_size, test_size])
 
-    dataloader_train = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=0)
+    dataloader_train = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=0, drop_last=True)
     dataloader_test = DataLoader(test_dataset, batch_size=batch_size, shuffle=True, num_workers=0)
 
     # init model
@@ -301,21 +303,23 @@ def train():
     in_dim_edge = 1
     out_dim = 1
 
+    hidden_dim = 64
+
     # we create the model
     model = GNN(
             in_dim_node, #includes data window, node type, inlet velocity 
             in_dim_edge, #distance and relative coordinates
             out_dim, #includes x-velocity, y-velocity, volume fraction, pressure (or a subset)
-            out_dim_node=32, out_dim_edge=32, 
-            hidden_dim_node=32, hidden_dim_edge=32,
+            out_dim_node=hidden_dim, out_dim_edge=hidden_dim, 
+            hidden_dim_node=hidden_dim, hidden_dim_edge=hidden_dim,
             hidden_layers_node=2, hidden_layers_edge=2,
             #graph processor attributes:
             mp_iterations=12,
-            hidden_dim_processor_node=32, hidden_dim_processor_edge=32, 
+            hidden_dim_processor_node=hidden_dim, hidden_dim_processor_edge=hidden_dim, 
             hidden_layers_processor_node=2, hidden_layers_processor_edge=2,
             mlp_norm_type="LayerNorm",
             #decoder attributes:
-            hidden_dim_decoder=32, hidden_layers_decoder=2,
+            hidden_dim_decoder=hidden_dim, hidden_layers_decoder=2,
             output_type='acceleration')
 
     # we create the burger function
@@ -330,11 +334,11 @@ def train():
     with open("/app/wandb_key/key.txt", "r") as f:
         key = f.read()
 
-    os.environ['WANDB_API_KEY'] = key
-    wandb.init(project='1D_Burgers', entity='forbu14')
+    #os.environ['WANDB_API_KEY'] = key
+    #wandb.init(project='1D_Burgers', entity='forbu14')
     
-    wandb_logger = pl.loggers.WandbLogger(project="1D_Burgers", name="GNN_1D_Burgers")
-    trainer = pl.Trainer(max_epochs=10, logger=wandb_logger, gradient_clip_val=0.5, accumulate_grad_batches=2)
+    #wandb_logger = pl.loggers.WandbLogger(project="1D_Burgers", name="GNN_1D_Burgers")
+    trainer = pl.Trainer(max_epochs=50, logger=None, gradient_clip_val=0.5, accumulate_grad_batches=2)
 
     # we train
     trainer.fit(gnn_full, dataloader_train, dataloader_test)
@@ -342,6 +346,11 @@ def train():
     # we save the model
     torch.save(trainer.model.state_dict(), "models_params/burger_model.pt")
 
+def load_model():
+
+    state_dict = torch.load("models_params/burger_model.pt")
+
+
 if __name__ == "__main__":
-    train()
+    train(load_from_checkpoint=True)
 
