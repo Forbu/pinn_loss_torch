@@ -75,7 +75,7 @@ class BurgerPDEDataset_classic(Dataset):
     This is in graph mode using the torch geometric library
     """
     def __init__(self, path_hdf5, mask=None):
-        super(BurgerPDEDataset, self).__init__()
+        super(BurgerPDEDataset_classic, self).__init__()
 
         self.path_hdf5 = path_hdf5
         self.mask = mask
