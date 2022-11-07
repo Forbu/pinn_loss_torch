@@ -26,6 +26,8 @@ from discretize_pinn_loss.loss_operator import BurgerDissipativeLossOperator
 
 import pytorch_lightning as pl
 
+import torchmetrics
+
 import torch
 from torch_geometric.data import Data, DataLoader
 
@@ -52,6 +54,10 @@ class GnnFull(pl.LightningModule):
 
         self.baseline = torch.nn.Identity()
 
+        # using metrics to get an idea of the performance
+        self.mse_metrics = torchmetrics.MeanSquaredError()
+        self.r2_metrics = torchmetrics.R2Score()
+
     def forward(self, graph):
 
         return self.model(graph)
@@ -61,8 +67,6 @@ class GnnFull(pl.LightningModule):
         graph_t_1 = batch
         edge_index = graph_t_1.edge_index
         edges = graph_t_1.edge_attr
-
-        print(edges)
 
         nodes = graph_t_1.x
         mask = graph_t_1.mask
@@ -78,6 +82,8 @@ class GnnFull(pl.LightningModule):
         # compute loss
         relative_loss = self.loss_function(graph_pred, graph_t_1, mask)
         loss = self.loss_mse(relative_loss, torch.zeros_like(relative_loss))
+        self.mse_metrics(relative_loss, torch.zeros_like(relative_loss))
+        self.r2_metrics(relative_loss, torch.zeros_like(relative_loss))
         self.log("train_loss", loss)
 
         relative_loss_baseline = self.loss_function(graph_baseline, graph_t_1, mask)
@@ -110,7 +116,14 @@ class GnnFull(pl.LightningModule):
         return loss
 
     # on validation epoch end
-    def validation_epoch_end_(self, outputs):
+    def training_epoch_end(self, outputs):
+
+        # logging metrics
+        self.log("r2_training_metrics" ,self.r2_metrics.compute().detach().cpu().numpy())
+        self.log("mse_training_metrics" ,self.mse_metrics.compute().detach().cpu().numpy())
+
+    # on validation epoch end
+    def validation_epoch_end(self, outputs):
 
         if self.eval_dataset_full_image is None:
             return
