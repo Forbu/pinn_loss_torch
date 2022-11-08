@@ -154,13 +154,13 @@ class NodeProcessor(nn.Module):
 
         super(NodeProcessor, self).__init__()
         self.node_mlp_in = MLP(in_dim_node + in_dim_edge,  
-            in_dim_node,
+            in_dim_node // 2,
             hidden_dim,
             hidden_layers,
             norm_type)
 
         self.node_mlp_out = MLP(in_dim_node + in_dim_edge,  
-            in_dim_node,
+            in_dim_node // 2,
             hidden_dim,
             hidden_layers,
             norm_type)
@@ -178,7 +178,7 @@ class NodeProcessor(nn.Module):
         out_out = cat([x, out_out], dim=-1)
         out_out = self.node_mlp_in(out_out)
 
-        out = out_in + out_out
+        out = cat([out_in, out_out], dim=-1)
 
         out += x #residual connection
 
