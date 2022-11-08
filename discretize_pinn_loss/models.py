@@ -153,8 +153,14 @@ class NodeProcessor(nn.Module):
         '''
 
         super(NodeProcessor, self).__init__()
-        self.node_mlp = MLP(in_dim_node + in_dim_edge,  
-            in_dim_node,
+        self.node_mlp_in = MLP(in_dim_node + in_dim_edge,  
+            in_dim_node // 2,
+            hidden_dim,
+            hidden_layers,
+            norm_type)
+
+        self.node_mlp_out = MLP(in_dim_node + in_dim_edge,  
+            in_dim_node // 2,
             hidden_dim,
             hidden_layers,
             norm_type)
@@ -164,9 +170,16 @@ class NodeProcessor(nn.Module):
 
         nb_node = x.shape[0]
 
-        out = scatter_sum(edge_attr, col, dim=0, dim_size=nb_node) #aggregate edge message by target
-        out = cat([x, out], dim=-1)
-        out = self.node_mlp(out)
+        out_in = scatter_sum(edge_attr, col, dim=0, dim_size=nb_node) #aggregate edge message by target
+        out_in = cat([x, out_in], dim=-1)
+        out_in = self.node_mlp_in(out_in)
+
+        out_out = scatter_sum(edge_attr, row, dim=0, dim_size=nb_node) #aggregate edge message by target
+        out_out = cat([x, out_out], dim=-1)
+        out_out = self.node_mlp_in(out_out)
+
+        out = cat([out_in, out_out], dim=-1)
+
         out += x #residual connection
 
         return out
