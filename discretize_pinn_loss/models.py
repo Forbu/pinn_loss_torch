@@ -36,7 +36,7 @@ class GNN(Module):
         super(GNN, self).__init__()
 
         # batch norm 1D for normalizing edge input
-        self.edge_normalizer = nn.Identity()
+        self.edge_normalizer = nn.BatchNorm1d(in_dim_edge)
 
         self.node_encoder = MLP(in_dim_node, out_dim_node, 
             hidden_dim_node, hidden_layers_node, 
