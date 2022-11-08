@@ -69,13 +69,13 @@ class BurgerPDEDataset(GeometricDataset):
         return graph
 
 
-class BurgerPDEDataset_classic(Dataset):
+class BurgerPDEDatasetClassic(Dataset):
     """
     This is a PDE dataset that we use to create our dataloader
     This is in graph mode using the torch geometric library
     """
     def __init__(self, path_hdf5, mask=None):
-        super(BurgerPDEDataset_classic, self).__init__()
+        super(BurgerPDEDatasetClassic, self).__init__()
 
         self.path_hdf5 = path_hdf5
         self.mask = mask
@@ -129,7 +129,7 @@ class BurgerPDEDatasetMultiTemporal(Dataset):
     This is in graph mode using the torch geometric library
     """
     def __init__(self, path_hdf5, mask=None, timesteps=3):
-        super(BurgerPDEDataset_classic, self).__init__()
+        super(BurgerPDEDatasetMultiTemporal, self).__init__()
 
         self.path_hdf5 = path_hdf5
         self.mask = mask
@@ -175,9 +175,6 @@ class BurgerPDEDatasetMultiTemporal(Dataset):
             tensor_to_predict = np.array(tensor_arr[idx_item, idx_t:(idx_t+self.timesteps), :]).reshape((-1, self.timesteps))
 
         return torch.tensor(tensor, dtype=torch.float32), torch.tensor(tensor_to_predict), torch.tensor(self.mask)
-
-
-
 
 class BurgerPDEDatasetFullSimulation(Dataset):
     def __init__(self, path_hdf5, edges, edges_index, mask=None):

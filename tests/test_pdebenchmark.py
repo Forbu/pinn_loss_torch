@@ -1,10 +1,11 @@
 import pytest 
 
-from discretize_pinn_loss.pdebenchmark import BurgerPDEDataset, BurgerPDEDatasetFullSimulation
+from discretize_pinn_loss.pdebenchmark import BurgerPDEDataset, BurgerPDEDatasetFullSimulation, BurgerPDEDatasetMultiTemporal
 from discretize_pinn_loss.utils import create_graph_burger
 
 # from torch.utils.data import DataLoader
 from torch_geometric.loader import DataLoader
+from torch.utils.data import DataLoader as DataLoader2
 
 def test_burgerpdedataset():
 
@@ -74,5 +75,20 @@ def test_burgerpdedataset_fullsimu():
 
         break
 
+def test_test_burgerpdedatasettemporal():
 
+    path_hdf5 = "/app/data/1D_Burgers_Sols_Nu0.01.hdf5"
 
+    dataset_temporal = BurgerPDEDatasetMultiTemporal(path_hdf5, mask=None, timesteps=3)
+
+    dataloader = DataLoader2(dataset_temporal, batch_size=1, shuffle=True, num_workers=0)
+
+    for i, data in enumerate(dataloader):
+
+        X, Y, M = data
+
+        assert X.shape == (1, 1024, 1)
+        assert Y.shape == (1, 1024, 3)
+        assert M.shape == (1, 1024)
+
+        break
