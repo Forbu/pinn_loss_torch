@@ -119,7 +119,7 @@ class BurgerPDEDataset_classic(Dataset):
 
             tensor_tp1 = np.array(tensor_arr[idx_item, idx_t+1, :]).reshape((-1, 1))
 
-        return torch.tensor(tensor, dtype=torch.float32), torch.tensor(tensor_tp1, dtype=torch.float32)
+        return torch.tensor(tensor, dtype=torch.float32), torch.tensor(tensor_tp1, dtype=torch.float32), torch.tensor(self.mask)
 
 class BurgerPDEDatasetFullSimulation(Dataset):
     def __init__(self, path_hdf5, edges, edges_index, mask=None):
