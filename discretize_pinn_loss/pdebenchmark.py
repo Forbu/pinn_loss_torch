@@ -121,19 +121,19 @@ class BurgerPDEDatasetClassic(Dataset):
 
         return torch.tensor(tensor, dtype=torch.float32), torch.tensor(tensor_tp1, dtype=torch.float32), torch.tensor(self.mask)
 
-
-
 class BurgerPDEDatasetMultiTemporal(Dataset):
     """
     This is a PDE dataset that we use to create our dataloader
     This is in graph mode using the torch geometric library
     """
-    def __init__(self, path_hdf5, mask=None, timesteps=3):
+    def __init__(self, path_hdf5, mask=None, timesteps=3, edges=None, edges_index=None, mask=None):
         super(BurgerPDEDatasetMultiTemporal, self).__init__()
 
         self.path_hdf5 = path_hdf5
         self.mask = mask
         self.timesteps = timesteps
+        self.edges = edges
+        self.edges_index = edges_index
 
         # first read to know the lenght of the dataset
         with h5py.File(self.path_hdf5, "r") as f:
@@ -174,7 +174,10 @@ class BurgerPDEDatasetMultiTemporal(Dataset):
 
             tensor_to_predict = np.array(tensor_arr[idx_item, idx_t:(idx_t+self.timesteps), :]).reshape((-1, self.timesteps))
 
-        return torch.tensor(tensor, dtype=torch.float32), torch.tensor(tensor_to_predict), torch.tensor(self.mask)
+        graph = Data(x=torch.tensor(tensor, dtype=torch.float32), edge_attr=torch.tensor(self.edges).float(),
+                    edge_index=torch.tensor(self.edges_index).T.long(), mask=torch.tensor(self.mask).float(), target=torch.tensor(tensor_to_predict).float())
+
+        return graph
 
 class BurgerPDEDatasetFullSimulation(Dataset):
     def __init__(self, path_hdf5, edges, edges_index, mask=None):
