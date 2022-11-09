@@ -4,7 +4,7 @@ Here we can test the GNN model
 
 import pytest
 
-from discretize_pinn_loss.models import GNN
+from discretize_pinn_loss.models_graph import GNN
 
 import torch
 
