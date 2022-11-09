@@ -8,8 +8,7 @@ RUN apt update -y && \
     apt install -y gcc && \
 	DEBIAN_FRONTEND="noninteractive" TZ="Europe/Paris"
 
-# install python 3.9
-RUN apt install python3.9 python3.9-dev -y
+RUN which python3
 
 # install pip 3.9
 RUN apt install python3-pip -y
@@ -24,6 +23,9 @@ RUN pip install pytorch_lightning
 
 # install pytest (for testing)
 RUN pip install pytest
+
+# install einops
+RUN pip install einops
 
 # install dvc (model versioning)
 RUN pip install dvc

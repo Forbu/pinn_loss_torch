@@ -6,7 +6,7 @@ from torch.nn import Module
 from torch import nn, cat
 import torch
 
-import torch.fonctional as F
+import torch.nn.functional as F
 
 class SpectralConv1d(nn.Module):
     def __init__(self, in_channels, out_channels, modes1):
@@ -75,7 +75,7 @@ class FNO1d(nn.Module):
         self.delta_t = delta_t
 
     def forward(self, x):
-        init = x
+        init = x[:, :, [0]]
         x = self.fc0(x)
         x = x.permute(0, 2, 1)
         # x = F.pad(x, [0,self.padding]) # pad the domain if input is non-periodic
