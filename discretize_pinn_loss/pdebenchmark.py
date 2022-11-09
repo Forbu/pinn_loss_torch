@@ -172,7 +172,7 @@ class BurgerPDEDatasetMultiTemporal(Dataset):
             # we concat the tensor with the mask
             tensor = tensor.reshape((-1, 1))
 
-            tensor_to_predict = np.array(tensor_arr[idx_item, idx_t:(idx_t+self.timesteps), :]).reshape((-1, self.timesteps))
+            tensor_to_predict = np.array(tensor_arr[idx_item, (idx_t + 1):(idx_t+self.timesteps + 1), :]).reshape((-1, self.timesteps))
 
         graph = Data(x=torch.tensor(tensor, dtype=torch.float32), edge_attr=torch.tensor(self.edges).float(),
                     edge_index=torch.tensor(self.edges_index).T.long(), mask=torch.tensor(self.mask).float(), target=torch.tensor(tensor_to_predict).float())
