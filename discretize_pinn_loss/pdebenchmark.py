@@ -126,7 +126,7 @@ class BurgerPDEDatasetMultiTemporal(Dataset):
     This is a PDE dataset that we use to create our dataloader
     This is in graph mode using the torch geometric library
     """
-    def __init__(self, path_hdf5, mask=None, timesteps=3, edges=None, edges_index=None, mask=None):
+    def __init__(self, path_hdf5, mask=None, timesteps=3, edges=None, edges_index=None):
         super(BurgerPDEDatasetMultiTemporal, self).__init__()
 
         self.path_hdf5 = path_hdf5
