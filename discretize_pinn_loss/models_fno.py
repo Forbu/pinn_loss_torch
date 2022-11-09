@@ -1,9 +1,6 @@
 """
-All of those code are copied from https://github.com/CCSI-Toolset/MGN 
-thanks to them !
-
-This is a GraphNetworks
-
+This code is ruthlessly copied from https://github.com/zongyi-li/fourier_neural_operator
+Thanks you zongyi !
 """
 from torch.nn import Module        
 from torch import nn, cat
@@ -14,11 +11,9 @@ import torch.fonctional as F
 class SpectralConv1d(nn.Module):
     def __init__(self, in_channels, out_channels, modes1):
         super(SpectralConv1d, self).__init__()
-
         """
         1D Fourier layer. It does FFT, linear transform, and Inverse FFT.    
         """
-
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.modes1 = modes1  #Number of Fourier modes to multiply, at most floor(N/2) + 1
@@ -45,7 +40,7 @@ class SpectralConv1d(nn.Module):
         return x
 
 class FNO1d(nn.Module):
-    def __init__(self, modes, width, delta_t=None):
+    def __init__(self, modes, width, delta_t=None, input_dim=1):
         super(FNO1d, self).__init__()
 
         """
@@ -64,7 +59,7 @@ class FNO1d(nn.Module):
         self.modes1 = modes
         self.width = width
         self.padding = 2 # pad the domain if input is non-periodic
-        self.fc0 = nn.Linear(2, self.width) # input channel is 2: (a(x), x)
+        self.fc0 = nn.Linear(input_dim, self.width) # input channel is 2: (a(x), x)
 
         self.conv0 = SpectralConv1d(self.width, self.width, self.modes1)
         self.conv1 = SpectralConv1d(self.width, self.width, self.modes1)
@@ -81,9 +76,6 @@ class FNO1d(nn.Module):
 
     def forward(self, x):
         init = x
-
-        grid = self.get_grid(x.shape, x.device)
-        x = torch.cat((x, grid), dim=-1)
         x = self.fc0(x)
         x = x.permute(0, 2, 1)
         # x = F.pad(x, [0,self.padding]) # pad the domain if input is non-periodic
@@ -113,9 +105,3 @@ class FNO1d(nn.Module):
         x = F.gelu(x)
         x = self.fc2(x)
         return x*self.delta_t + init
-
-    def get_grid(self, shape, device):
-        batchsize, size_x = shape[0], shape[1]
-        gridx = torch.tensor(np.linspace(0, 1, size_x), dtype=torch.float)
-        gridx = gridx.reshape(1, size_x, 1).repeat([batchsize, 1, 1])
-        return gridx.to(device)
