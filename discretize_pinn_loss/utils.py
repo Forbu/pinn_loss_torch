@@ -14,13 +14,13 @@ def create_graph_burger(nb_space, delta_x, nb_nodes=None, nb_edges=None):
     # create the edges features, size : ((nb_space - 1) * 2, 1)
     # the first (nb_space - 1) edges are the edges that goes from top to bottom
     # the second (nb_space - 1) edges are the edges that goes from bottom to top
-    edges = np.zeros(((nb_space - 1), 1), dtype=np.float32)
+    edges = np.zeros(((nb_space - 1) * 2, 1), dtype=np.float32)
 
     edges[:(nb_space - 1), 0] = delta_x # positive edges
-    #edges[(nb_space - 1):, 0] = -delta_x # negative edges
+    edges[(nb_space - 1):, 0] = -delta_x # negative edges
 
     # now we can create the edges_index values
-    edges_index = np.zeros(((nb_space - 1), 2), dtype=np.int32)
+    edges_index = np.zeros(((nb_space - 1) * 2, 2), dtype=np.int32)
 
     # we create the edges_index for the positive edges
     # the first column is the index of the node that is the source of the edge
@@ -33,8 +33,8 @@ def create_graph_burger(nb_space, delta_x, nb_nodes=None, nb_edges=None):
     edges_index[:(nb_space - 1), 1] = np.arange(1, nb_space)
 
     # now we can create the edges_index for the negative edges
-    #edges_index[(nb_space - 1):, 0] = np.arange(1, nb_space)
-    #edges_index[(nb_space - 1):, 1] = np.arange(nb_space - 1)
+    edges_index[(nb_space - 1):, 0] = np.arange(1, nb_space)
+    edges_index[(nb_space - 1):, 1] = np.arange(nb_space - 1)
 
     # we check the number of nodes and edges
     if nb_nodes is not None:

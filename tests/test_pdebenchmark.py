@@ -36,7 +36,7 @@ def test_burgerpdedataset():
 
         print(data)
         
-        assert data["x"].shape == (batch_size*nb_space, 2)
+        assert data["x"].shape == (batch_size*nb_space, 3)
         assert data["edge_attr"].shape == (batch_size*(nb_space - 1) * 2 , 1)
         assert data["edge_index"].shape == (2, batch_size*(nb_space - 1) * 2)
 

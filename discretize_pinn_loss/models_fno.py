@@ -74,7 +74,7 @@ class FNO1d(nn.Module):
         self.fc2 = nn.Linear(128, 1)
         self.delta_t = delta_t
 
-    def forward(self, x):
+    def forward(self, x, mask=None, limit_condition=None):
         init = x[:, :, [0]]
         x = self.fc0(x)
         x = x.permute(0, 2, 1)
@@ -104,4 +104,7 @@ class FNO1d(nn.Module):
         x = self.fc1(x)
         x = F.gelu(x)
         x = self.fc2(x)
-        return x*self.delta_t + init
+
+        result = init + self.delta_t * x
+
+        return result

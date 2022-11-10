@@ -9,6 +9,7 @@ from torch import nn, cat
 from torch_geometric.nn import MetaLayer
 from torch_scatter import scatter_sum, scatter_mean
 from torch_geometric.data import Data
+import torch
 
 class EdgeSpatialDerivative(Module):
     """
@@ -139,10 +140,13 @@ class BurgerDissipativeImplicitLossOperator(Module):
         self.temporal_derivative_operator = TemporalDerivativeOperator(self.index_derivative_node, self.delta_t)
         self.spatial_derivative_operator = SpatialDerivativeOperator(self.index_derivative_node, self.index_derivative_edge)
 
-    def forward(self, graph_t, graph_t_1, mask=None):
+    def forward(self, graph_t, graph_t_1, mask=None, limit_condition=None):
         """
-        TODO care about dim_node
+        mask is used to mask the loss on the boundary
         """
+        if limit_condition is not None:
+            graph_t.x[:, self.index_derivative_node] = torch.where(mask == 0, limit_condition, graph_t.x[:, self.index_derivative_node])
+
         # compute the temporal derivative
         temporal_derivative = self.temporal_derivative_operator(graph_t, graph_t_1)
 
@@ -157,7 +161,7 @@ class BurgerDissipativeImplicitLossOperator(Module):
         # compute the loss
         loss = temporal_derivative + spatial_derivative * graph_t.x[:, self.index_derivative_node] - self.mu * second_order_derivative
 
-        if mask is not None:
+        if mask is not None and limit_condition is None:
             loss = loss * mask.squeeze()
 
         return loss

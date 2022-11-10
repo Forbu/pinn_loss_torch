@@ -58,11 +58,14 @@ class BurgerPDEDataset(GeometricDataset):
             # we get the tensor at the index idx
             tensor = np.array(tensor_arr[idx_item, idx_t, :])
 
-            # we concat the tensor with the mask
-            tensor = np.concatenate([tensor.reshape((-1, 1)), self.mask], axis=1)
-
             tensor_tp1 = np.array(tensor_arr[idx_item, idx_t+1, :])
 
+            # we indicate the limit condition inside the vector
+            limit_condition = (1 - self.mask) * tensor_tp1.reshape((-1, 1))
+
+            # we concat the tensor with the mask
+            tensor = np.concatenate([tensor.reshape((-1, 1)), self.mask, limit_condition], axis=1)
+ 
         graph = Data(x=torch.tensor(tensor, dtype=torch.float32), edge_attr=torch.tensor(self.edges).float(),
                     edge_index=torch.tensor(self.edges_index).T.long(), mask=torch.tensor(self.mask).float(), x_next=torch.tensor(tensor_tp1).float())
 
@@ -221,9 +224,12 @@ class BurgerPDEDatasetFullSimulation(Dataset):
 
 
             # here we should retrieve the initial condition
-            tensor_t0 = torch.Tensor(tensor_arr[idx_item, 0, :])
+            tensor_t0 = torch.Tensor(tensor_arr[idx_item, 0, :]).reshape((-1, 1))
 
-            tensor_t0 = torch.cat([tensor_t0.reshape((-1, 1)), self.mask], axis=1)
+            tensor_t1 = torch.Tensor(tensor_arr[idx_item, 1, :]).reshape((-1, 1))
+
+
+            tensor_t0 = torch.cat([tensor_t0, self.mask, tensor_t1 * (1 - self.mask)], axis=1)
 
             # boundary condition
             tensor_boundary_x__1 = torch.Tensor(tensor_arr[idx_item, :, 0])

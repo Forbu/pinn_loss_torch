@@ -88,7 +88,7 @@ class FnoFull(pl.LightningModule):
         # compute loss
         relative_loss = self.loss_function(graph_pred, graph_t_1, mask)
 
-        relative_loss_baseline = self.loss_function(graph_baseline, graph_t_1, mask)
+        relative_loss_baseline = self.loss_function(graph_baseline, graph_t_1)
 
         loss = self.loss_mse(relative_loss, torch.zeros_like(relative_loss))
 
@@ -177,16 +177,20 @@ class FnoFull(pl.LightningModule):
         nb_time = image_result.shape[0]
 
         # forward pass
-        for t in range(1, nb_time):
+        for t in range(1, nb_time-1):
             with torch.no_grad():
                 nodes_pred = self.forward(graph_current)
 
 
             # we add the boundary conditions
-            nodes_pred[0, 0] = nodes_boundary_x__1[t]
-            nodes_pred[-1, 0] = nodes_boundary_x_1[t]
+            limit_x__1 = nodes_boundary_x_1[t+1]
+            limit_x_1 = nodes_boundary_x__1[t+1]
 
-            nodes_pred = torch.cat([nodes_pred, mask], axis = 1)
+            limit_condition = torch.zeros((nodes_pred.shape[0], 1)).to(self.device)
+            limit_condition[0, 0] = limit_x__1
+            limit_condition[-1, 0] = limit_x_1
+            
+            nodes_pred = torch.cat([nodes_pred, mask, limit_condition], axis = 1)
 
             # we create the two graphs
             graph_pred = Data(x=nodes_pred, edge_index=edges_index, edge_attr=edges)
@@ -313,7 +317,7 @@ def train():
     dataloader_test = DataLoader(test_dataset, batch_size=batch_size, shuffle=True, num_workers=0)
 
     # init model
-    in_dim_node = 2
+    input_dim = 3
     in_dim_edge = 1
     out_dim = 1
 
@@ -321,7 +325,7 @@ def train():
     width = 64
 
     # we create the model
-    model = FNO1d(modes, width, delta_t=delta_t, input_dim=2)
+    model = FNO1d(modes, width, delta_t=delta_t, input_dim=input_dim)
 
     # we create the burger function
     burger_loss = BurgerDissipativeLossOperator(index_derivative_node=0, index_derivative_edge=0, delta_t=delta_t, mu=0.01)
