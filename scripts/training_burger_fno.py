@@ -286,10 +286,10 @@ def train():
 
     # create domain
     nb_space = 1024
-    nb_time = 200
+    nb_time = 2000
 
     delta_x = 2.0 / nb_space
-    delta_t = 1.0 / nb_time # to check
+    delta_t = 2.0 / nb_time # to check
 
     batch_size = 16
 
@@ -303,7 +303,7 @@ def train():
     dataset_full_image = BurgerPDEDatasetFullSimulation(path_hdf5=path, edges=edges, edges_index=edges_index, mask=mask)
 
     # we take a subset of the dataset
-    dataset = torch.utils.data.Subset(dataset, range(0, 40000))
+    dataset = torch.utils.data.Subset(dataset, range(0, 80000))
 
     # divide into train and test
     train_size = int(0.95 * len(dataset))
