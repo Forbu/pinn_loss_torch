@@ -64,8 +64,6 @@ class FnoFull(pl.LightningModule):
 
         result = self.model(nodes)
 
-
-    
         # we reshape the result to have the same shape as the input
         result = result.reshape(-1, 1)
 
@@ -286,7 +284,7 @@ def train():
 
     # create domain
     nb_space = 1024
-    nb_time = 2000
+    nb_time = 200
 
     delta_x = 2.0 / nb_space
     delta_t = 2.0 / nb_time # to check

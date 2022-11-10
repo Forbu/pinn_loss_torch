@@ -121,3 +121,43 @@ class BurgerDissipativeLossOperator(Module):
             loss = loss * mask.squeeze()
 
         return loss
+
+
+class BurgerDissipativeImplicitLossOperator(Module):
+    """
+    This class is used to compute the dissipative loss of the burger equation
+    """
+    def __init__(self, index_derivative_node, index_derivative_edge, delta_t, mu) -> None:
+        super().__init__()
+
+        self.index_derivative_node = index_derivative_node
+        self.index_derivative_edge = index_derivative_edge
+
+        self.delta_t = delta_t
+        self.mu = mu
+
+        self.temporal_derivative_operator = TemporalDerivativeOperator(self.index_derivative_node, self.delta_t)
+        self.spatial_derivative_operator = SpatialDerivativeOperator(self.index_derivative_node, self.index_derivative_edge)
+
+    def forward(self, graph_t, graph_t_1, mask=None):
+        """
+        TODO care about dim_node
+        """
+        # compute the temporal derivative
+        temporal_derivative = self.temporal_derivative_operator(graph_t, graph_t_1)
+
+        # compute the spatial derivative
+        spatial_derivative = self.spatial_derivative_operator(graph_t)
+
+        graph_first_order = Data(x=spatial_derivative.unsqueeze(-1), edge_index=graph_t.edge_index, edge_attr=graph_t.edge_attr)
+
+        # second order derivative
+        second_order_derivative = self.spatial_derivative_operator(graph_first_order)
+
+        # compute the loss
+        loss = temporal_derivative + spatial_derivative * graph_t.x[:, self.index_derivative_node] - self.mu * second_order_derivative
+
+        if mask is not None:
+            loss = loss * mask.squeeze()
+
+        return loss
