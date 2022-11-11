@@ -22,7 +22,7 @@ sys.path.append("/app/")
 from discretize_pinn_loss.pdebenchmark import BurgerPDEDataset, BurgerPDEDatasetFullSimulation
 from discretize_pinn_loss.models_fno import FNO1d
 from discretize_pinn_loss.utils import create_graph_burger
-from discretize_pinn_loss.loss_operator import BurgerDissipativeLossOperator
+from discretize_pinn_loss.loss_operator import BurgerDissipativeLossOperator, BurgerDissipativeImplicitLossOperator
 
 import pytorch_lightning as pl
 
@@ -328,7 +328,7 @@ def train():
     model = FNO1d(modes, width, delta_t=delta_t, input_dim=input_dim)
 
     # we create the burger function
-    burger_loss = BurgerDissipativeLossOperator(index_derivative_node=0, index_derivative_edge=0, delta_t=delta_t, mu=0.01)
+    burger_loss = BurgerDissipativeImplicitLossOperator(index_derivative_node=0, index_derivative_edge=0, delta_t=delta_t, mu=0.01)
 
     # we create the trainer
     gnn_full = FnoFull(model, burger_loss, eval_dataset_full_image=dataset_full_image)

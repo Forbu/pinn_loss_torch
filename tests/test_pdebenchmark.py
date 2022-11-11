@@ -7,6 +7,8 @@ from discretize_pinn_loss.utils import create_graph_burger
 from torch_geometric.loader import DataLoader
 from torch.utils.data import DataLoader as DataLoader2
 
+import h5py
+
 def test_burgerpdedataset():
 
     # we choose the discretization of the space and the time
@@ -42,38 +44,6 @@ def test_burgerpdedataset():
 
         break 
 
-def test_burgerpdedataset_fullsimu():
-
-    # we choose the discretization of the space and the time
-    nb_space = 1024
-    nb_time = 201
-
-    delta_x = 2.0 / nb_space
-    delta_t = 1.0 / nb_time
-
-    # we choose the batch size
-    batch_size = 1
-
-    # now we can create the dataloader
-    edges, edges_index, mask = create_graph_burger(nb_space, delta_x, nb_nodes=None, nb_edges=None)
-
-    path_hdf5 = "/app/data/1D_Burgers_Sols_Nu0.01.hdf5"
-
-    # we create the dataset
-    dataset = BurgerPDEDatasetFullSimulation(path_hdf5, edges, edges_index)
-    dataloader = DataLoader(dataset, batch_size=1, shuffle=True, num_workers=0)
-
-    # we test the dataloader
-    for i, data in enumerate(dataloader):
-
-        assert data["nodes_t0"].shape == (batch_size, nb_space,2)
-
-        assert data["image_result"].shape == (batch_size, nb_time, nb_space)
-
-        assert data['nodes_boundary_x__1'].shape == (batch_size, nb_time,)
-        assert data['nodes_boundary_x_1'].shape == (batch_size, nb_time,)
-
-        break
 
 def test_burgerpdedatasettemporal():
 
@@ -102,3 +72,48 @@ def test_burgerpdedatasettemporal():
         assert graph.mask.shape == (1024 * batch_size, )
 
         break
+
+def test_burgerpdedataset_fullsimu():
+
+    # we choose the discretization of the space and the time
+    nb_space = 1024
+    nb_time = 201
+
+    delta_x = 2.0 / nb_space
+    delta_t = 1.0 / nb_time
+
+    # we choose the batch size
+    batch_size = 1
+
+    # now we can create the dataloader
+    edges, edges_index, mask = create_graph_burger(nb_space, delta_x, nb_nodes=None, nb_edges=None)
+
+    path_hdf5 = "/app/data/1D_Burgers_Sols_Nu0.01.hdf5"
+
+    # we create the dataset
+    dataset = BurgerPDEDatasetFullSimulation(path_hdf5, edges, edges_index)
+    dataloader = DataLoader(dataset, batch_size=1, shuffle=True, num_workers=0)
+
+    # we test the dataloader
+    for i, data in enumerate(dataloader):
+
+        assert data["nodes_t0"].shape == (batch_size, nb_space,3)
+
+        assert data["image_result"].shape == (batch_size, nb_time, nb_space)
+
+        assert data['nodes_boundary_x__1'].shape == (batch_size, nb_time,)
+        assert data['nodes_boundary_x_1'].shape == (batch_size, nb_time,)
+
+        break
+
+
+def test_dataset_looking_into():
+
+    path_hdf5 = "/app/data/1D_Burgers_Sols_Nu0.01.hdf5"
+
+    with h5py.File(path_hdf5, "r") as f:
+        print(f.keys())
+        print(f["x-coordinate"].shape)
+        print(f["t-coordinate"].shape)
+
+    assert True

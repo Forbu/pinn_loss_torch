@@ -128,11 +128,13 @@ class BurgerDissipativeImplicitLossOperator(Module):
     """
     This class is used to compute the dissipative loss of the burger equation
     """
-    def __init__(self, index_derivative_node, index_derivative_edge, delta_t, mu) -> None:
+    def __init__(self, index_derivative_node, index_derivative_edge, delta_t, mu, index_limit=2, index_mask=1) -> None:
         super().__init__()
 
         self.index_derivative_node = index_derivative_node
         self.index_derivative_edge = index_derivative_edge
+        self.index_limit = index_limit
+        self.index_mask = index_mask
 
         self.delta_t = delta_t
         self.mu = mu
@@ -140,12 +142,12 @@ class BurgerDissipativeImplicitLossOperator(Module):
         self.temporal_derivative_operator = TemporalDerivativeOperator(self.index_derivative_node, self.delta_t)
         self.spatial_derivative_operator = SpatialDerivativeOperator(self.index_derivative_node, self.index_derivative_edge)
 
-    def forward(self, graph_t, graph_t_1, mask=None, limit_condition=None):
+    def forward(self, graph_t, graph_t_1, mask=None):
         """
         mask is used to mask the loss on the boundary
         """
-        if limit_condition is not None:
-            graph_t.x[:, self.index_derivative_node] = torch.where(mask == 0, limit_condition, graph_t.x[:, self.index_derivative_node])
+        
+        #graph_t.x[:, self.index_derivative_node] = torch.where(graph_t_1.x[:, self.index_mask] == 0, graph_t_1.x[:, self.index_limit], graph_t.x[:, self.index_derivative_node])
 
         # compute the temporal derivative
         temporal_derivative = self.temporal_derivative_operator(graph_t, graph_t_1)
@@ -161,7 +163,7 @@ class BurgerDissipativeImplicitLossOperator(Module):
         # compute the loss
         loss = temporal_derivative + spatial_derivative * graph_t.x[:, self.index_derivative_node] - self.mu * second_order_derivative
 
-        if mask is not None and limit_condition is None:
+        if mask is not None:
             loss = loss * mask.squeeze()
 
         return loss

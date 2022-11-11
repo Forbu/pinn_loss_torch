@@ -40,7 +40,7 @@ class SpectralConv1d(nn.Module):
         return x
 
 class FNO1d(nn.Module):
-    def __init__(self, modes, width, delta_t=None, input_dim=1):
+    def __init__(self, modes, width, delta_t=None, input_dim=3, index_value=0, index_condition=1, limit_condition=2):
         super(FNO1d, self).__init__()
 
         """
@@ -74,8 +74,15 @@ class FNO1d(nn.Module):
         self.fc2 = nn.Linear(128, 1)
         self.delta_t = delta_t
 
+        self.index_value = index_value
+        self.index_condition = index_condition
+        self.limit_condition = limit_condition
+
     def forward(self, x, mask=None, limit_condition=None):
-        init = x[:, :, [0]]
+
+        assert x.shape[-1] == 3, "The input channel dimension should be 2: (a(x), x)"
+
+        init = x
         x = self.fc0(x)
         x = x.permute(0, 2, 1)
         # x = F.pad(x, [0,self.padding]) # pad the domain if input is non-periodic
@@ -105,6 +112,8 @@ class FNO1d(nn.Module):
         x = F.gelu(x)
         x = self.fc2(x)
 
-        result = init + self.delta_t * x
+        result = init[:, :, [self.index_value]] + self.delta_t * x
+
+        result = torch.where(init[:, :, [self.index_condition]] == 0, init[:, :, [self.limit_condition]], result)
 
         return result
