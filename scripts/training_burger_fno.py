@@ -277,7 +277,7 @@ class FnoFull(pl.LightningModule):
             graph_t1 = Data(x=nodes_t1, edge_index=edges_index, edge_attr=edges_attr)
 
             # 3. compute the loss
-            loss_burger[t, :] = self.loss_function(graph_t1, graph_t0, mask)
+            loss_burger[t, :] = self.loss_function(graph_t1, graph_t0)
 
         # we compute the mean loss
         loss_burger_full = self.loss_mse(loss_burger, torch.zeros_like(loss_burger))
@@ -350,6 +350,8 @@ def train():
 
     # we save the model
     torch.save(trainer.model.state_dict(), "models_params/burger_model.pt")
+
+    return gnn_full
 
 if __name__ == "__main__":
     train()
