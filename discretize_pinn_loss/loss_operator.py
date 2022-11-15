@@ -47,7 +47,7 @@ class EdgeSpatialSecondDerivative(Module):
     This class is used to compute the derivative of the edge
     """
     def __init__(self):
-        super(EdgeSpatialDerivative, self).__init__()
+        super(EdgeSpatialSecondDerivative, self).__init__()
 
     def forward(self, src, dest, edge_attr, u=None, batch=None):
         """
@@ -61,7 +61,7 @@ class NodeSpatialSecondDerivative(Module):
     This class is used to compute the derivative of the node
     """
     def __init__(self, delta_x=None):
-        super(NodeSpatialDerivative, self).__init__()
+        super(NodeSpatialSecondDerivative, self).__init__()
         self.delta_x = delta_x
 
     def forward(self, x, edge_index, edge_attr, u=None, batch=None):
@@ -104,7 +104,7 @@ class SpatialDerivativeOperator(Module):
 # here we define the loss operator
 class SpatialSecondDerivativeOperator(Module):
 
-    def __init__(self, index_derivative_node, index_derivative_edge) -> None:
+    def __init__(self, index_derivative_node, index_derivative_edge, delta_x) -> None:
         super().__init__()
 
         self.index_derivative_node = index_derivative_node
@@ -113,7 +113,7 @@ class SpatialSecondDerivativeOperator(Module):
         # we define the meta layer TODO CHANGE
         self.meta_layer = MetaLayer(
             edge_model=EdgeSpatialSecondDerivative(),
-            node_model=NodeSpatialSecondDerivative(),)
+            node_model=NodeSpatialSecondDerivative(delta_x),)
 
     def forward(self, graph):
         """
@@ -187,7 +187,7 @@ class BurgerDissipativeImplicitLossOperator(Module):
     """
     This class is used to compute the dissipative loss of the burger equation
     """
-    def __init__(self, index_derivative_node, index_derivative_edge, delta_t, mu, index_limit=2, index_mask=1) -> None:
+    def __init__(self, index_derivative_node, index_derivative_edge, delta_t, delta_x, mu, index_limit=2, index_mask=1) -> None:
         super().__init__()
 
         self.index_derivative_node = index_derivative_node
@@ -196,10 +196,12 @@ class BurgerDissipativeImplicitLossOperator(Module):
         self.index_mask = index_mask
 
         self.delta_t = delta_t
+        self.delta_x = delta_x
         self.mu = mu
 
         self.temporal_derivative_operator = TemporalDerivativeOperator(self.index_derivative_node, self.delta_t)
         self.spatial_derivative_operator = SpatialDerivativeOperator(self.index_derivative_node, self.index_derivative_edge)
+        self.spatial_secondderivative_operator = SpatialSecondDerivativeOperator(self.index_derivative_node, self.index_derivative_edge, self.delta_x)
 
     def forward(self, graph_t, graph_t_1, mask=None):
         """
@@ -214,10 +216,8 @@ class BurgerDissipativeImplicitLossOperator(Module):
         # compute the spatial derivative
         spatial_derivative = self.spatial_derivative_operator(graph_t)
 
-        graph_first_order = Data(x=spatial_derivative.unsqueeze(-1), edge_index=graph_t.edge_index, edge_attr=graph_t.edge_attr)
-
         # second order derivative
-        second_order_derivative = self.spatial_derivative_operator(graph_first_order)
+        second_order_derivative = self.spatial_secondderivative_operator(graph_t)
 
         # compute the loss
         loss = temporal_derivative + spatial_derivative * graph_t.x[:, self.index_derivative_node] - self.mu * second_order_derivative

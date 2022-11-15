@@ -328,7 +328,8 @@ def train():
     model = FNO1d(modes, width, delta_t=delta_t, input_dim=input_dim)
 
     # we create the burger function
-    burger_loss = BurgerDissipativeImplicitLossOperator(index_derivative_node=0, index_derivative_edge=0, delta_t=delta_t, mu=0.01)
+    burger_loss = BurgerDissipativeImplicitLossOperator(index_derivative_node=0, index_derivative_edge=0, 
+                                                                                        delta_t=delta_t, delta_x=delta_x, mu=0.01)
 
     # we create the trainer
     gnn_full = FnoFull(model, burger_loss, eval_dataset_full_image=dataset_full_image)
