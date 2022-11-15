@@ -42,6 +42,40 @@ class NodeSpatialDerivative(Module):
         derivative = scatter_mean(edge_attr, edge_index[1], dim=0, dim_size=nb_node)
         return derivative
 
+class EdgeSpatialSecondDerivative(Module):
+    """
+    This class is used to compute the derivative of the edge
+    """
+    def __init__(self):
+        super(EdgeSpatialDerivative, self).__init__()
+
+    def forward(self, src, dest, edge_attr, u=None, batch=None):
+        """
+        This function compute the derivative of the edge
+        """
+        local_info = src 
+        return local_info
+
+class NodeSpatialSecondDerivative(Module):
+    """
+    This class is used to compute the derivative of the node
+    """
+    def __init__(self, delta_x=None):
+        super(NodeSpatialDerivative, self).__init__()
+        self.delta_x = delta_x
+
+    def forward(self, x, edge_index, edge_attr, u=None, batch=None):
+        """
+        This function compute the derivative of the node
+        It is the mean of the derivative of the edge
+        """
+        nb_node = x.shape[0]
+        sum_extrem = scatter_sum(edge_attr, edge_index[1], dim=0, dim_size=nb_node)
+
+        derivative = (sum_extrem - 2 * x) / (self.delta_x)**2
+
+        return derivative
+
 # here we define the loss operator
 class SpatialDerivativeOperator(Module):
 
@@ -58,7 +92,7 @@ class SpatialDerivativeOperator(Module):
 
     def forward(self, graph):
         """
-        TODO care about dim_node and dim_edge
+        Care about dim_node and dim_edge
         """
         nodes_input = graph.x[:, self.index_derivative_node]
         edges_input = graph.edge_attr[:, self.index_derivative_edge]
@@ -66,6 +100,32 @@ class SpatialDerivativeOperator(Module):
         nodes, _, _ = self.meta_layer(nodes_input, graph.edge_index, edges_input)
 
         return nodes
+
+# here we define the loss operator
+class SpatialSecondDerivativeOperator(Module):
+
+    def __init__(self, index_derivative_node, index_derivative_edge) -> None:
+        super().__init__()
+
+        self.index_derivative_node = index_derivative_node
+        self.index_derivative_edge = index_derivative_edge
+
+        # we define the meta layer TODO CHANGE
+        self.meta_layer = MetaLayer(
+            edge_model=EdgeSpatialSecondDerivative(),
+            node_model=NodeSpatialSecondDerivative(),)
+
+    def forward(self, graph):
+        """
+        Care about dim_node and dim_edge
+        """
+        nodes_input = graph.x[:, self.index_derivative_node]
+        edges_input = graph.edge_attr[:, self.index_derivative_edge]
+        
+        nodes, _, _ = self.meta_layer(nodes_input, graph.edge_index, edges_input)
+
+        return nodes
+
 
 class TemporalDerivativeOperator(Module):
     """
@@ -75,7 +135,6 @@ class TemporalDerivativeOperator(Module):
         super().__init__()
 
         self.index_derivator = index_derivator
-
         self.delta_t = delta_t
 
     def forward(self, graph_t, graph_t_1):
