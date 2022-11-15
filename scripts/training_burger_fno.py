@@ -90,7 +90,7 @@ class FnoFull(pl.LightningModule):
 
         relative_loss_baseline = self.loss_function(graph_baseline, graph_t_1)
 
-        loss = self.loss_mse(relative_loss, torch.zeros_like(relative_loss))
+        loss = self.loss_mse(relative_loss, torch.zeros_like(relative_loss), mask=mask)
 
         loss_baseline = self.loss_mse(relative_loss_baseline, torch.zeros_like(relative_loss_baseline))
 
