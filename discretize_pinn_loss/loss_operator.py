@@ -11,6 +11,8 @@ from torch_scatter import scatter_sum, scatter_mean
 from torch_geometric.data import Data
 import torch
 
+import math
+
 class EdgeSpatialDerivative(Module):
     """
     This class is used to compute the derivative of the edge
@@ -269,8 +271,8 @@ class BurgerDissipativeMixLossOperator(Module):
         second_order_derivative_init = self.spatial_secondderivative_operator(graph_t_1)
 
         # compute the loss
-        loss = temporal_derivative + 1/2 * (spatial_derivative * graph_t.x[:, self.index_derivative_node] - self.mu * second_order_derivative) + \
-                            1/2 * (spatial_derivative_init * graph_t_1.x[:, self.index_derivative_node] - self.mu * second_order_derivative_init)
+        loss = temporal_derivative + 1/2 * (spatial_derivative * graph_t.x[:, self.index_derivative_node] - self.mu / math.pi * second_order_derivative) + \
+                            1/2 * (spatial_derivative_init * graph_t_1.x[:, self.index_derivative_node] - self.mu / math.pi * second_order_derivative_init)
 
         if mask is not None:
             loss = loss * mask.squeeze()
