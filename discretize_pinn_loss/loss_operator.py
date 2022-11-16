@@ -21,13 +21,21 @@ class EdgeSpatialDerivative(Module):
     def forward(self, src, dest, edge_attr, u=None, batch=None):
         """
         This function compute the derivative of the edge
+
+        4 cases :
+            - u > 0 and edge_attrib > 0 => 0
+            - u < 0 and edge_attrib > 0 => local_derivative
+            - u > 0 and edge_attrib < 0 => local_derivative
+            - u < 0 and edge_attrib < 0 => 0
         """
-        local_derivative = (dest - src) / edge_attr
+        local_derivative = torch.where(src*edge_attr < 0 , (dest - src) / edge_attr, 0)
+
         return local_derivative
 
 class NodeSpatialDerivative(Module):
     """
     This class is used to compute the derivative of the node
+    This is the upwind version !
     """
     def __init__(self):
         super(NodeSpatialDerivative, self).__init__()
@@ -39,7 +47,7 @@ class NodeSpatialDerivative(Module):
         """
         nb_node = x.shape[0]
 
-        derivative = scatter_mean(edge_attr, edge_index[1], dim=0, dim_size=nb_node)
+        derivative = scatter_sum(edge_attr, edge_index[1], dim=0, dim_size=nb_node)
         return derivative
 
 class EdgeSpatialSecondDerivative(Module):
