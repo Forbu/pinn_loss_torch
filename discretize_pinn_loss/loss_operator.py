@@ -226,3 +226,53 @@ class BurgerDissipativeImplicitLossOperator(Module):
             loss = loss * mask.squeeze()
 
         return loss
+
+
+class BurgerDissipativeMixLossOperator(Module):
+    """
+    This class is used to compute the dissipative loss of the burger equation
+    """
+    def __init__(self, index_derivative_node, index_derivative_edge, delta_t, delta_x, mu, index_limit=2, index_mask=1) -> None:
+        super().__init__()
+
+        self.index_derivative_node = index_derivative_node
+        self.index_derivative_edge = index_derivative_edge
+        self.index_limit = index_limit
+        self.index_mask = index_mask
+
+        self.delta_t = delta_t
+        self.delta_x = delta_x
+        self.mu = mu
+
+        self.temporal_derivative_operator = TemporalDerivativeOperator(self.index_derivative_node, self.delta_t)
+        self.spatial_derivative_operator = SpatialDerivativeOperator(self.index_derivative_node, self.index_derivative_edge)
+        self.spatial_secondderivative_operator = SpatialSecondDerivativeOperator(self.index_derivative_node, self.index_derivative_edge, self.delta_x)
+
+    def forward(self, graph_t, graph_t_1, mask=None):
+        """
+        mask is used to mask the loss on the boundary
+        """
+
+        # compute the temporal derivative
+        temporal_derivative = self.temporal_derivative_operator(graph_t, graph_t_1)
+
+        # compute the spatial derivative
+        spatial_derivative = self.spatial_derivative_operator(graph_t)
+
+        # second order derivative
+        second_order_derivative = self.spatial_secondderivative_operator(graph_t)
+
+        # compute the spatial derivative
+        spatial_derivative_init = self.spatial_derivative_operator(graph_t_1)
+
+        # second order derivative
+        second_order_derivative_init = self.spatial_secondderivative_operator(graph_t_1)
+
+        # compute the loss
+        loss = temporal_derivative + 1/2 * (spatial_derivative * graph_t.x[:, self.index_derivative_node] - self.mu * second_order_derivative) + \
+                            1/2 * (spatial_derivative_init * graph_t_1.x[:, self.index_derivative_node] - self.mu * second_order_derivative_init)
+
+        if mask is not None:
+            loss = loss * mask.squeeze()
+
+        return loss
