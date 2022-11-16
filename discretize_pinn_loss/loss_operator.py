@@ -25,12 +25,12 @@ class EdgeSpatialDerivative(Module):
         This function compute the derivative of the edge
 
         4 cases :
-            - u > 0 and edge_attrib > 0 => 0
-            - u < 0 and edge_attrib > 0 => local_derivative
-            - u > 0 and edge_attrib < 0 => local_derivative
-            - u < 0 and edge_attrib < 0 => 0
+            - u > 0 and edge_attrib > 0 => local_derivative
+            - u < 0 and edge_attrib > 0 => 0
+            - u > 0 and edge_attrib < 0 => 0
+            - u < 0 and edge_attrib < 0 => local_derivative
         """
-        local_derivative = torch.where(src*edge_attr < 0 , (dest - src) / edge_attr, 0)
+        local_derivative = torch.where(src*edge_attr > 0 , (dest - src) / edge_attr, 0)
 
         return local_derivative
 
