@@ -11,6 +11,8 @@ from torch_scatter import scatter_sum, scatter_mean
 from torch_geometric.data import Data
 import torch
 
+import math
+
 class EdgeSpatialDerivative(Module):
     """
     This class is used to compute the derivative of the edge
@@ -228,7 +230,7 @@ class BurgerDissipativeImplicitLossOperator(Module):
         second_order_derivative = self.spatial_secondderivative_operator(graph_t)
 
         # compute the loss
-        loss = temporal_derivative + spatial_derivative * graph_t.x[:, self.index_derivative_node] - self.mu * second_order_derivative
+        loss = temporal_derivative + spatial_derivative * graph_t.x[:, self.index_derivative_node] - self.mu / math.pi * second_order_derivative
 
         if mask is not None:
             loss = loss * mask.squeeze()
