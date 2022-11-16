@@ -183,12 +183,16 @@ class FnoFull(pl.LightningModule):
 
 
             # we add the boundary conditions
-            limit_x__1 = nodes_boundary_x_1[t+1]
-            limit_x_1 = nodes_boundary_x__1[t+1]
+            # we add the boundary conditions
+            limit_x__1 = nodes_boundary_x_1[t]
+            limit_x_1 = nodes_boundary_x__1[t]
+
+            limit_x__1_next = nodes_boundary_x_1[t+1]
+            limit_x_1_next = nodes_boundary_x__1[t+1]
 
             limit_condition = torch.zeros((nodes_pred.shape[0], 1)).to(self.device)
-            limit_condition[0, 0] = limit_x__1
-            limit_condition[-1, 0] = limit_x_1
+            limit_condition[0, 0] = limit_x__1_next
+            limit_condition[-1, 0] = limit_x_1_next
             
             nodes_pred = torch.cat([nodes_pred, mask, limit_condition], axis = 1)
 
