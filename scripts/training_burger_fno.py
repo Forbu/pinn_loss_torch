@@ -22,7 +22,7 @@ sys.path.append("/app/")
 from discretize_pinn_loss.pdebenchmark import BurgerPDEDataset, BurgerPDEDatasetFullSimulation
 from discretize_pinn_loss.models_fno import FNO1d
 from discretize_pinn_loss.utils import create_graph_burger
-from discretize_pinn_loss.loss_operator import BurgerDissipativeLossOperator, BurgerDissipativeImplicitLossOperator
+from discretize_pinn_loss.loss_operator import BurgerDissipativeLossOperator, BurgerDissipativeImplicitLossOperator, BurgerDissipativeMixLossOperator
 
 import pytorch_lightning as pl
 
@@ -290,7 +290,7 @@ def train():
     nb_space = 1024
     nb_time = 200
 
-    delta_x = 2.0 / nb_space
+    delta_x = 1.0 / nb_space
     delta_t = 2.0 / nb_time # to check
 
     batch_size = 16
@@ -328,7 +328,7 @@ def train():
     model = FNO1d(modes, width, delta_t=delta_t, input_dim=input_dim)
 
     # we create the burger function
-    burger_loss = BurgerDissipativeImplicitLossOperator(index_derivative_node=0, index_derivative_edge=0, 
+    burger_loss = BurgerDissipativeMixLossOperator(index_derivative_node=0, index_derivative_edge=0, 
                                                                                         delta_t=delta_t, delta_x=delta_x, mu=0.01)
 
     # we create the trainer
