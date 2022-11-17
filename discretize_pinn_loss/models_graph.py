@@ -9,6 +9,7 @@ from torch.nn import Module
 from torch import nn, cat
 from torch_geometric.nn import MetaLayer
 from torch_scatter import scatter_sum
+import torch
 
 class GNN(Module):
     #default values based on MeshGraphNets paper/supplement
@@ -30,6 +31,7 @@ class GNN(Module):
             output_type='acceleration',
             out_index = [0],
             delta_t = 0.005,
+            index_value=0, index_condition=1, limit_condition=2,
             #other:
             **kwargs):
 
@@ -54,7 +56,13 @@ class GNN(Module):
         self.out_index = out_index
         self.delta_t = delta_t
 
+        self.index_value = index_value
+        self.index_condition = index_condition
+        self.limit_condition = limit_condition
+
     def forward(self, graph):
+
+        init = graph.x
 
         # normalize edge input
         edge_attr = self.edge_normalizer(graph.edge_attr)
@@ -65,7 +73,10 @@ class GNN(Module):
         out, _ = self.graph_processor(out, graph.edge_index, edge_attr)
         out = self.node_decoder(out) 
 
-        return out * self.delta_t + graph.x[:, self.out_index] 
+        result = init[:, :, [self.index_value]] + self.delta_t * out
+        result = torch.where(init[:, :, [self.index_condition]] == 0, init[:, :, [self.limit_condition]], result)
+
+        return result
 
 class MLP(nn.Module):
     #MLP with LayerNorm
