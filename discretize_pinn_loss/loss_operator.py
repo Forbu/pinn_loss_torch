@@ -13,6 +13,13 @@ import torch
 
 import math
 
+
+#################### Loss Operator #####################
+############### Classic derivative #####################
+########################################################
+
+=======
+
 class EdgeSpatialDerivative(Module):
     """
     This class is used to compute the derivative of the edge
@@ -42,6 +49,77 @@ class NodeSpatialDerivative(Module):
         nb_node = x.shape[0]
 
         derivative = scatter_mean(edge_attr, edge_index[1], dim=0, dim_size=nb_node)
+        return derivative
+
+
+# here we define the loss operator
+class SpatialDerivativeOperator(Module):
+
+    def __init__(self, index_derivative_node, index_derivative_edge) -> None:
+        super().__init__()
+
+        self.index_derivative_node = index_derivative_node
+        self.index_derivative_edge = index_derivative_edge
+
+        # we define the meta layer TODO CHANGE
+        self.meta_layer = MetaLayer(
+            edge_model=EdgeSpatialDerivative(),
+            node_model=NodeSpatialDerivative(),)
+
+    def forward(self, graph):
+        """
+        Care about dim_node and dim_edge
+        """
+        nodes_input = graph.x[:, self.index_derivative_node]
+        edges_input = graph.edge_attr[:, self.index_derivative_edge]
+        
+        nodes, _, _ = self.meta_layer(nodes_input, graph.edge_index, edges_input)
+
+        return nodes
+
+#################### Loss Operator #####################
+############### Burger derivative ######################
+########################################################
+
+class EdgeSpatialUpWindDerivative(Module):
+    """
+    This class is used to compute the derivative of the edge
+    """
+    def __init__(self):
+        super(EdgeSpatialUpWindDerivative, self).__init__()
+
+    def forward(self, src, dest, edge_attr, u=None, batch=None):
+        """
+        This function compute the derivative of the edge
+
+        4 cases :
+            - u > 0 and edge_attrib > 0 => local_derivative
+            - u < 0 and edge_attrib > 0 => 0
+            - u > 0 and edge_attrib < 0 => 0
+            - u < 0 and edge_attrib < 0 => local_derivative
+        """
+        local_derivative = torch.where(src*edge_attr > 0 , (dest - src) / edge_attr, 0)
+
+        return local_derivative
+
+
+
+class NodeSpatialBurgerDerivative(Module):
+    """
+    This class is used to compute the derivative of the node
+    This is the upwind version !
+    """
+    def __init__(self):
+        super(NodeSpatialBurgerDerivative, self).__init__()
+
+    def forward(self, x, edge_index, edge_attr, u=None, batch=None):
+        """
+        This function compute the derivative of the node
+        It is the mean of the derivative of the edge
+        """
+        nb_node = x.shape[0]
+
+        derivative = scatter_sum(edge_attr, edge_index[1], dim=0, dim_size=nb_node)
         return derivative
 
 class EdgeSpatialSecondDerivative(Module):
@@ -79,7 +157,7 @@ class NodeSpatialSecondDerivative(Module):
         return derivative
 
 # here we define the loss operator
-class SpatialDerivativeOperator(Module):
+class SpatialBurgerDerivativeOperator(Module):
 
     def __init__(self, index_derivative_node, index_derivative_edge) -> None:
         super().__init__()
@@ -89,8 +167,8 @@ class SpatialDerivativeOperator(Module):
 
         # we define the meta layer TODO CHANGE
         self.meta_layer = MetaLayer(
-            edge_model=EdgeSpatialDerivative(),
-            node_model=NodeSpatialDerivative(),)
+            edge_model=EdgeSpatialUpWindDerivative(),
+            node_model=NodeSpatialBurgerDerivative(),)
 
     def forward(self, graph):
         """
@@ -128,6 +206,10 @@ class SpatialSecondDerivativeOperator(Module):
 
         return nodes
 
+#################### Loss Operator #####################
+############### Temporal derivative ####################
+########################################################
+
 
 class TemporalDerivativeOperator(Module):
     """
@@ -145,136 +227,3 @@ class TemporalDerivativeOperator(Module):
         """
         return (graph_t.x[:, self.index_derivator] - graph_t_1.x[:, self.index_derivator])/self.delta_t
 
-class BurgerDissipativeLossOperator(Module):
-    """
-    This class is used to compute the dissipative loss of the burger equation
-    """
-    def __init__(self, index_derivative_node, index_derivative_edge, delta_t, mu) -> None:
-        super().__init__()
-
-        self.index_derivative_node = index_derivative_node
-        self.index_derivative_edge = index_derivative_edge
-
-        self.delta_t = delta_t
-        self.mu = mu
-
-        self.temporal_derivative_operator = TemporalDerivativeOperator(self.index_derivative_node, self.delta_t)
-        self.spatial_derivative_operator = SpatialDerivativeOperator(self.index_derivative_node, self.index_derivative_edge)
-
-    def forward(self, graph_t, graph_t_1, mask=None):
-        """
-        TODO care about dim_node
-        """
-        # compute the temporal derivative
-        temporal_derivative = self.temporal_derivative_operator(graph_t, graph_t_1)
-
-        # compute the spatial derivative
-        spatial_derivative = self.spatial_derivative_operator(graph_t_1)
-
-        graph_first_order = Data(x=spatial_derivative.unsqueeze(-1), edge_index=graph_t_1.edge_index, edge_attr=graph_t_1.edge_attr)
-
-        # second order derivative
-        second_order_derivative = self.spatial_derivative_operator(graph_first_order)
-
-        # compute the loss
-        loss = temporal_derivative + spatial_derivative * graph_t_1.x[:, self.index_derivative_node] - self.mu * second_order_derivative
-
-        if mask is not None:
-            loss = loss * mask.squeeze()
-
-        return loss
-
-
-class BurgerDissipativeImplicitLossOperator(Module):
-    """
-    This class is used to compute the dissipative loss of the burger equation
-    """
-    def __init__(self, index_derivative_node, index_derivative_edge, delta_t, delta_x, mu, index_limit=2, index_mask=1) -> None:
-        super().__init__()
-
-        self.index_derivative_node = index_derivative_node
-        self.index_derivative_edge = index_derivative_edge
-        self.index_limit = index_limit
-        self.index_mask = index_mask
-
-        self.delta_t = delta_t
-        self.delta_x = delta_x
-        self.mu = mu
-
-        self.temporal_derivative_operator = TemporalDerivativeOperator(self.index_derivative_node, self.delta_t)
-        self.spatial_derivative_operator = SpatialDerivativeOperator(self.index_derivative_node, self.index_derivative_edge)
-        self.spatial_secondderivative_operator = SpatialSecondDerivativeOperator(self.index_derivative_node, self.index_derivative_edge, self.delta_x)
-
-    def forward(self, graph_t, graph_t_1, mask=None):
-        """
-        mask is used to mask the loss on the boundary
-        """
-        
-        #graph_t.x[:, self.index_derivative_node] = torch.where(graph_t_1.x[:, self.index_mask] == 0, graph_t_1.x[:, self.index_limit], graph_t.x[:, self.index_derivative_node])
-
-        # compute the temporal derivative
-        temporal_derivative = self.temporal_derivative_operator(graph_t, graph_t_1)
-
-        # compute the spatial derivative
-        spatial_derivative = self.spatial_derivative_operator(graph_t)
-
-        # second order derivative
-        second_order_derivative = self.spatial_secondderivative_operator(graph_t)
-
-        # compute the loss
-        loss = temporal_derivative + spatial_derivative * graph_t.x[:, self.index_derivative_node] - self.mu * second_order_derivative
-
-        if mask is not None:
-            loss = loss * mask.squeeze()
-
-        return loss
-
-
-class BurgerDissipativeMixLossOperator(Module):
-    """
-    This class is used to compute the dissipative loss of the burger equation
-    """
-    def __init__(self, index_derivative_node, index_derivative_edge, delta_t, delta_x, mu, index_limit=2, index_mask=1) -> None:
-        super().__init__()
-
-        self.index_derivative_node = index_derivative_node
-        self.index_derivative_edge = index_derivative_edge
-        self.index_limit = index_limit
-        self.index_mask = index_mask
-
-        self.delta_t = delta_t
-        self.delta_x = delta_x
-        self.mu = mu
-
-        self.temporal_derivative_operator = TemporalDerivativeOperator(self.index_derivative_node, self.delta_t)
-        self.spatial_derivative_operator = SpatialDerivativeOperator(self.index_derivative_node, self.index_derivative_edge)
-        self.spatial_secondderivative_operator = SpatialSecondDerivativeOperator(self.index_derivative_node, self.index_derivative_edge, self.delta_x)
-
-    def forward(self, graph_t, graph_t_1, mask=None):
-        """
-        mask is used to mask the loss on the boundary
-        """
-
-        # compute the temporal derivative
-        temporal_derivative = self.temporal_derivative_operator(graph_t, graph_t_1)
-
-        # compute the spatial derivative
-        spatial_derivative = self.spatial_derivative_operator(graph_t)
-
-        # second order derivative
-        second_order_derivative = self.spatial_secondderivative_operator(graph_t)
-
-        # compute the spatial derivative
-        spatial_derivative_init = self.spatial_derivative_operator(graph_t_1)
-
-        # second order derivative
-        second_order_derivative_init = self.spatial_secondderivative_operator(graph_t_1)
-
-        # compute the loss
-        loss = temporal_derivative + 1/2 * (spatial_derivative * graph_t.x[:, self.index_derivative_node] - self.mu / math.pi * second_order_derivative) + \
-                            1/2 * (spatial_derivative_init * graph_t_1.x[:, self.index_derivative_node] - self.mu / math.pi * second_order_derivative_init)
-
-        if mask is not None:
-            loss = loss * mask.squeeze()
-
-        return loss
