@@ -4,7 +4,8 @@ tests for loss operator
 
 import pytest
 
-from discretize_pinn_loss.loss_operator import SpatialDerivativeOperator, TemporalDerivativeOperator, BurgerDissipativeLossOperator
+from discretize_pinn_loss.loss_operator import SpatialDerivativeOperator, TemporalDerivativeOperator
+from discretize_pinn_loss.losses_burger import BurgerDissipativeLossOperator
 
 from discretize_pinn_loss.utils import create_graph_burger
 

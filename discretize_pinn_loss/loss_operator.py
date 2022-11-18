@@ -18,8 +18,6 @@ import math
 ############### Classic derivative #####################
 ########################################################
 
-=======
-
 class EdgeSpatialDerivative(Module):
     """
     This class is used to compute the derivative of the edge

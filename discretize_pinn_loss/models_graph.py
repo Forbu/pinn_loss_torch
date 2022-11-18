@@ -73,8 +73,8 @@ class GNN(Module):
         out, _ = self.graph_processor(out, graph.edge_index, edge_attr)
         out = self.node_decoder(out) 
 
-        result = init[:, :, [self.index_value]] + self.delta_t * out
-        result = torch.where(init[:, :, [self.index_condition]] == 0, init[:, :, [self.limit_condition]], result)
+        result = init[:, [self.index_value]] + self.delta_t * out
+        result = torch.where(init[:, [self.index_condition]] == 0, init[:, [self.limit_condition]], result)
 
         return result
 

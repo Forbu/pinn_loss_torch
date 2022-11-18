@@ -13,7 +13,7 @@ from torch_geometric.data import Data
 
 def test_gnn():
 
-    in_dim_node = 2
+    in_dim_node = 4
     in_dim_edge = 2
     out_dim = 2
 
