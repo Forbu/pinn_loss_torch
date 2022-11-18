@@ -27,6 +27,28 @@ class Nabla2DOperator(Module):
         derivative_y = self.derivative_y(graph)
 
         # we compute the nabla2d
+        nabla2d = torch.cat((derivative_x, derivative_y), dim=1)
+
+        return nabla2d
+
+class Nabla2DProductOperator(Module):
+    def __init__(self, delta_x, delta_y) -> None:
+        super().__init__()
+        self.delta_x = delta_x
+        self.delta_y = delta_y
+
+        self.derivative_x = SpatialDerivativeOperator(index_derivative_node=0, index_derivative_edge=0)
+        self.derivative_y = SpatialDerivativeOperator(index_derivative_node=1, index_derivative_edge=1)
+
+    def forward(self, graph):
+        
+        # we compute the derivative of the x component
+        derivative_x = self.derivative_x(graph)
+
+        # we compute the derivative of the y component
+        derivative_y = self.derivative_y(graph)
+
+        # we compute the nabla2d
         nabla2d = derivative_x + derivative_y
 
         return nabla2d
@@ -42,16 +64,17 @@ class DarcyFlowOperator(Module):
         self.delta_y = delta_y
 
         self.nabla2d_operator = Nabla2DOperator(delta_x=delta_x, delta_y=delta_y)
+        self.nabla2d_product_operator = Nabla2DProductOperator(delta_x=delta_x, delta_y=delta_y)
 
     def forward(self, out, a_x, f, mask=None):
 
         # first we compute the nabla of the out
-        nabla2d_out = self.nabla2d_operator(out)
+        nabla2d_out = self.nabla2d_operator(out) # shape (nb_node, 2)
 
-        tmp_flow = a_x * nabla2d_out
+        tmp_flow = a_x * nabla2d_out # shape (nb_node, 2)
 
         # we compute the nabla of the tmp_flow
-        nabla2d_tmp_flow = self.nabla2d_operator(tmp_flow)
+        nabla2d_tmp_flow = self.nabla2d_product_operator(tmp_flow) # shape (nb_node, 1)
 
         pde_loss = nabla2d_tmp_flow - f
 
