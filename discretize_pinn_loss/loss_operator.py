@@ -13,9 +13,12 @@ import torch
 
 import math
 
+
 #################### Loss Operator #####################
 ############### Classic derivative #####################
 ########################################################
+
+=======
 
 class EdgeSpatialDerivative(Module):
     """
@@ -223,3 +226,4 @@ class TemporalDerivativeOperator(Module):
         TODO care about dim_node
         """
         return (graph_t.x[:, self.index_derivator] - graph_t_1.x[:, self.index_derivator])/self.delta_t
+
