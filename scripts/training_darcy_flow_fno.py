@@ -85,8 +85,6 @@ class FnoFull(pl.LightningModule):
         # we create the two graphs
         graph_pred = Data(x=nodes_pred, edge_index=edge_index, edge_attr=edges)
 
-        print("graph_pred.x", graph_pred.x)
-        print("graph_a_x.x", graph_a_x.x)
 
         # compute loss
         relative_loss = self.loss_function(graph_pred, graph_a_x)

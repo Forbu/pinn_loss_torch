@@ -30,6 +30,10 @@ class EdgeSpatialDerivative(Module):
         This function compute the derivative of the edge
         """
         local_derivative = (dest - src) / edge_attr
+
+        # return None if edge_attr is 0
+        local_derivative[edge_attr == 0] = -99999
+
         return local_derivative
 
 class NodeSpatialDerivative(Module):
@@ -45,6 +49,10 @@ class NodeSpatialDerivative(Module):
         It is the mean of the derivative of the edge
         """
         nb_node = x.shape[0]
+
+        # delete edge_attr == -99999
+        edge_index = edge_index[:, edge_attr != -99999]
+        edge_attr = edge_attr[edge_attr != -99999]
 
         derivative = scatter_mean(edge_attr, edge_index[1], dim=0, dim_size=nb_node)
         return derivative

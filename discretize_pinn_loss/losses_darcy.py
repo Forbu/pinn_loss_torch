@@ -84,9 +84,6 @@ class DarcyFlowOperator(Module):
         # first we compute the nabla of the out
         nabla2d_out = self.nabla2d_operator(out) # shape (nb_node, 2)
 
-        print("nabla2d_out", nabla2d_out.shape)
-        print(nabla2d_out[nabla2d_out != -torch.inf])
-
         tmp_flow = a_x.x[:, [self.index_derivative_node]] * nabla2d_out # shape (nb_node, 2)
 
         # create the graph
