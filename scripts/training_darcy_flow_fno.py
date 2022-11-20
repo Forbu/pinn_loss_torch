@@ -61,11 +61,12 @@ class FnoFull(pl.LightningModule):
         size_image = math.sqrt(int(nodes.shape[0] / batch_size))
 
         nodes = einops.rearrange(nodes, "(b n) d -> b n d", b=batch_size)
-        images = einops.rearrange(nodes, "b (s s) d -> b s s n", s=int(size_image))
+
+        images = einops.rearrange(nodes, "b (s sb) d -> b s sb d", s=int(size_image), sb=int(size_image))
 
         result = self.model(images)
 
-        result = einops.rearrange(result, "b s s n -> b (s s) n")
+        result = einops.rearrange(result, "b s sb n -> b (s sb) n", s=int(size_image), sb=int(size_image))
 
         result = einops.rearrange(result, "b n d -> (b n) d")
 
@@ -76,7 +77,7 @@ class FnoFull(pl.LightningModule):
         graph_a_x = batch
         edge_index = graph_a_x.edge_index
         edges = graph_a_x.edge_attr
-        mask = graph_a_x.mask
+
 
         # forward pass
         nodes_pred = self.forward(graph_a_x)
@@ -85,7 +86,7 @@ class FnoFull(pl.LightningModule):
         graph_pred = Data(x=nodes_pred, edge_index=edge_index, edge_attr=edges)
 
         # compute loss
-        relative_loss = self.loss_function(graph_pred, graph_a_x, mask)
+        relative_loss = self.loss_function(graph_pred, graph_a_x)
 
         loss = self.loss_mse(relative_loss, torch.zeros_like(relative_loss))
 
@@ -116,6 +117,10 @@ class FnoFull(pl.LightningModule):
     def validation_epoch_end(self, outputs):
         pass
 
+    def configure_optimizers(self):
+        optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-3)
+        return optimizer
+
 def train():
 
     # create domain
@@ -127,7 +132,7 @@ def train():
     batch_size = 16
 
     # init dataset and dataloader
-    path = "/app/data/1D_Burgers_Sols_Nu0.01.hdf5"
+    path = "/app/data/2D_DarcyFlow_beta1.0_Train.hdf5"
     dataset = Darcy2DPDEDataset(path_hdf5=path, delta_x=delta_x, delta_y=delta_y)
 
     # divide into train and test
@@ -150,7 +155,7 @@ def train():
     model = FNO2d(modes1=16, modes2=16,  width=16, input_dim=3)
 
     # we create the burger function
-    burger_loss = DarcyFlowOperator(index_derivative_node=0, index_derivative_edge=0, delta_y=delta_y, delta_x=delta_x)
+    burger_loss = DarcyFlowOperator(index_derivative_node=0, index_derivative_x=1, index_derivative_y=1, delta_y=delta_y, delta_x=delta_x)
 
     # we create the trainer
     gnn_full = FnoFull(model, burger_loss)

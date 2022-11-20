@@ -118,6 +118,10 @@ class FnoFull(pl.LightningModule):
 
         return loss
 
+    def configure_optimizers(self):
+        optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-3)
+        return optimizer
+
     # on validation epoch end
     def validation_epoch_end(self, outputs):
 
@@ -156,9 +160,7 @@ class FnoFull(pl.LightningModule):
         ############## Checking the coherence of the provided solution to the burger loss equation ####################
         self.check_burger_loss_equation(image_result, mask, edges_index, edges)
 
-    def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-3)
-        return optimizer
+
 
     def recursive_simulation(self, nodes_t0, edges, edges_index, image_result, mask, nodes_boundary_x__1, nodes_boundary_x_1, name_simulation="simulation"):
 
