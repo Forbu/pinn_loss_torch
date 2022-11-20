@@ -51,10 +51,10 @@ class NodeSpatialDerivative(Module):
         nb_node = x.shape[0]
 
         # delete edge_attr == -99999
-        edge_index = edge_index[:, edge_attr != -99999]
-        edge_attr = edge_attr[edge_attr != -99999]
+        edge_index_tmp = edge_index[:, edge_attr != -99999]
+        edge_attr_tmp = edge_attr[edge_attr != -99999]
 
-        derivative = scatter_mean(edge_attr, edge_index[1], dim=0, dim_size=nb_node)
+        derivative = scatter_mean(edge_attr_tmp, edge_index_tmp[1], dim=0, dim_size=nb_node)
         return derivative
 
 

@@ -162,7 +162,7 @@ class SpectralConv2d(nn.Module):
         return x
 
 class FNO2d(nn.Module):
-    def __init__(self, modes1, modes2,  width, input_dim=3):
+    def __init__(self, modes1, modes2,  width, input_dim=3, mask_index=1, limit_condition=2):
         super(FNO2d, self).__init__()
 
         """
@@ -181,6 +181,10 @@ class FNO2d(nn.Module):
         self.modes1 = modes1
         self.modes2 = modes2
         self.width = width
+
+        self.mask_index = mask_index
+        self.limit_condition = limit_condition
+
         self.padding = 9 # pad the domain if input is non-periodic
         self.fc0 = nn.Linear(input_dim, self.width) # input channel is 3: (a(x, y), x, y)
 
@@ -198,6 +202,10 @@ class FNO2d(nn.Module):
 
     def forward(self, x):
         init = x
+
+        mask = x[:, :, :, [self.mask_index]]
+        boundary = x[:, :, :, [self.limit_condition]]
+
         x = self.fc0(x)
         x = x.permute(0, 3, 1, 2)
         x = F.pad(x, [0,self.padding, 0,self.padding])
@@ -226,5 +234,8 @@ class FNO2d(nn.Module):
         x = self.fc1(x)
         x = F.gelu(x)
         x = self.fc2(x)
+
+        x = x * (1 - mask) + boundary * mask
+
         return x
     
