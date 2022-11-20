@@ -85,12 +85,20 @@ class FnoFull(pl.LightningModule):
         # we create the two graphs
         graph_pred = Data(x=nodes_pred, edge_index=edge_index, edge_attr=edges)
 
+        print("graph_pred.x", graph_pred.x)
+        print("graph_a_x.x", graph_a_x.x)
+
         # compute loss
         relative_loss = self.loss_function(graph_pred, graph_a_x)
+
+        print("relative_loss", relative_loss)
 
         loss = self.loss_mse(relative_loss, torch.zeros_like(relative_loss))
 
         self.log("train_loss", loss)
+
+        print(loss)
+        exit()
 
         return loss
 
@@ -153,7 +161,7 @@ def train():
     model = FNO2d(modes1=modes, modes2=modes,  width=width, input_dim=input_dim)
 
     # we create the burger function
-    burger_loss = DarcyFlowOperator(index_derivative_node=0, index_derivative_x=1, index_derivative_y=1, delta_y=delta_y, delta_x=delta_x)
+    burger_loss = DarcyFlowOperator(index_derivative_node=0, index_derivative_x=0, index_derivative_y=1, delta_y=delta_y, delta_x=delta_x)
 
     # we create the trainer
     gnn_full = FnoFull(model, burger_loss)
@@ -165,9 +173,9 @@ def train():
         key = f.read()
 
     os.environ['WANDB_API_KEY'] = key
-    wandb.init(project='2D_Darcy', entity='forbu14')
+    #wandb.init(project='2D_Darcy', entity='forbu14')
     
-    wandb_logger = pl.loggers.WandbLogger(project="2D_Darcy", name="2D_Darcy")
+    wandb_logger = None #pl.loggers.WandbLogger(project="2D_Darcy", name="2D_Darcy")
     trainer = pl.Trainer(max_epochs=10, logger=wandb_logger, gradient_clip_val=0.5, accumulate_grad_batches=2)
 
     # we train

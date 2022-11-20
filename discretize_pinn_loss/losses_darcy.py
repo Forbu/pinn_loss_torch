@@ -60,7 +60,7 @@ class DarcyFlowOperator(Module):
     """
     Class that define the operator for the darcy flow equation
     """
-    def __init__(self, index_derivative_node=0, index_derivative_x=1, index_derivative_y=1, delta_x=0.1, delta_y=0.1) -> None:
+    def __init__(self, index_derivative_node=0, index_derivative_x=0, index_derivative_y=1, delta_x=0.1, delta_y=0.1) -> None:
         super().__init__()
         self.delta_x = delta_x
         self.delta_y = delta_y
@@ -83,6 +83,9 @@ class DarcyFlowOperator(Module):
 
         # first we compute the nabla of the out
         nabla2d_out = self.nabla2d_operator(out) # shape (nb_node, 2)
+
+        print("nabla2d_out", nabla2d_out.shape)
+        print(nabla2d_out[nabla2d_out != -torch.inf])
 
         tmp_flow = a_x.x[:, [self.index_derivative_node]] * nabla2d_out # shape (nb_node, 2)
 
