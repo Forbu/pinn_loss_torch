@@ -32,7 +32,7 @@ class EdgeSpatialDerivative(Module):
         local_derivative = (dest - src) / edge_attr
 
         # return None if edge_attr is 0
-        local_derivative[edge_attr == 0] = -99
+        local_derivative = torch.where(edge_attr == 0, torch.zeros_like(local_derivative) - 99, local_derivative)
 
         return local_derivative
 
