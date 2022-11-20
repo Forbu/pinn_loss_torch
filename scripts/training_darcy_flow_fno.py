@@ -89,14 +89,10 @@ class FnoFull(pl.LightningModule):
         # compute loss
         relative_loss = self.loss_function(graph_pred, graph_a_x)
 
-        print("relative_loss", relative_loss)
 
         loss = self.loss_mse(relative_loss, torch.zeros_like(relative_loss))
 
         self.log("train_loss", loss)
-
-        print(loss)
-        exit()
 
         return loss
 
