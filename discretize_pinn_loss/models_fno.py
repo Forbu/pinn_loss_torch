@@ -162,7 +162,7 @@ class SpectralConv2d(nn.Module):
         return x
 
 class FNO2d(nn.Module):
-    def __init__(self, modes1, modes2,  width):
+    def __init__(self, modes1, modes2,  width, input_dim=3):
         super(FNO2d, self).__init__()
 
         """
@@ -182,7 +182,7 @@ class FNO2d(nn.Module):
         self.modes2 = modes2
         self.width = width
         self.padding = 9 # pad the domain if input is non-periodic
-        self.fc0 = nn.Linear(3, self.width) # input channel is 3: (a(x, y), x, y)
+        self.fc0 = nn.Linear(input_dim, self.width) # input channel is 3: (a(x, y), x, y)
 
         self.conv0 = SpectralConv2d(self.width, self.width, self.modes1, self.modes2)
         self.conv1 = SpectralConv2d(self.width, self.width, self.modes1, self.modes2)
@@ -197,8 +197,7 @@ class FNO2d(nn.Module):
         self.fc2 = nn.Linear(128, 1)
 
     def forward(self, x):
-        grid = self.get_grid(x.shape, x.device)
-        x = torch.cat((x, grid), dim=-1)
+        init = x
         x = self.fc0(x)
         x = x.permute(0, 3, 1, 2)
         x = F.pad(x, [0,self.padding, 0,self.padding])
@@ -229,10 +228,3 @@ class FNO2d(nn.Module):
         x = self.fc2(x)
         return x
     
-    def get_grid(self, shape, device):
-        batchsize, size_x, size_y = shape[0], shape[1], shape[2]
-        gridx = torch.tensor(np.linspace(0, 1, size_x), dtype=torch.float)
-        gridx = gridx.reshape(1, size_x, 1, 1).repeat([batchsize, 1, size_y, 1])
-        gridy = torch.tensor(np.linspace(0, 1, size_y), dtype=torch.float)
-        gridy = gridy.reshape(1, 1, size_y, 1).repeat([batchsize, size_x, 1, 1])
-        return torch.cat((gridx, gridy), dim=-1).to(device)

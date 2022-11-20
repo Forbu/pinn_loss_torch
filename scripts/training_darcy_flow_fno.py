@@ -76,7 +76,6 @@ class FnoFull(pl.LightningModule):
         graph_a_x = batch
         edge_index = graph_a_x.edge_index
         edges = graph_a_x.edge_attr
-        nodes = graph_a_x.x
         mask = graph_a_x.mask
 
         # forward pass
@@ -86,7 +85,7 @@ class FnoFull(pl.LightningModule):
         graph_pred = Data(x=nodes_pred, edge_index=edge_index, edge_attr=edges)
 
         # compute loss
-        relative_loss = self.loss_function(graph_pred, graph_t_1, mask)
+        relative_loss = self.loss_function(graph_pred, graph_a_x, mask)
 
         loss = self.loss_mse(relative_loss, torch.zeros_like(relative_loss))
 
@@ -96,16 +95,16 @@ class FnoFull(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
 
-        graph_t_1 = batch
+        a_x = batch
 
         # forward pass
-        nodes_pred = self.forward(graph_t_1)
+        u_x = self.forward(a_x)
 
         # we create the two graphs
-        graph_pred = Data(x=nodes_pred, edge_index=graph_t_1.edge_index, edge_attr=graph_t_1.edge_attr)
+        graph_pred = Data(x=u_x, edge_index=a_x.edge_index, edge_attr=a_x.edge_attr)
 
         # compute loss
-        relative_loss = self.loss_function(graph_pred, graph_t_1)
+        relative_loss = self.loss_function(graph_pred, a_x)
 
         loss = self.loss_mse(relative_loss, torch.zeros_like(relative_loss))
 
@@ -120,17 +119,16 @@ class FnoFull(pl.LightningModule):
 def train():
 
     # create domain
-    nb_space = 1024
-    nb_time = 200
+    nb_space = 128
 
     delta_x = 1.0 / nb_space
-    delta_t = 2.0 / nb_time # to check
+    delta_y = delta_x
 
     batch_size = 16
 
     # init dataset and dataloader
     path = "/app/data/1D_Burgers_Sols_Nu0.01.hdf5"
-    dataset = Darcy2DPDEDataset(path_hdf5=path)
+    dataset = Darcy2DPDEDataset(path_hdf5=path, delta_x=delta_x, delta_y=delta_y)
 
     # divide into train and test
     train_size = int(0.95 * len(dataset))
@@ -149,11 +147,10 @@ def train():
     width = 64
 
     # we create the model
-    model = FNO2d(modes, width, delta_t=delta_t, input_dim=input_dim)
+    model = FNO2d(modes1=16, modes2=16,  width=16, input_dim=3)
 
     # we create the burger function
-    burger_loss = DarcyFlowOperator(index_derivative_node=0, index_derivative_edge=0, 
-                                                                                        delta_t=delta_t, delta_x=delta_x, mu=0.01)
+    burger_loss = DarcyFlowOperator(index_derivative_node=0, index_derivative_edge=0, delta_y=delta_y, delta_x=delta_x)
 
     # we create the trainer
     gnn_full = FnoFull(model, burger_loss)
