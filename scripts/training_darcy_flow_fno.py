@@ -30,6 +30,7 @@ from torch_geometric.data import Data, DataLoader, Batch
 
 import hashlib
 import datetime
+import math
 
 import os
 
@@ -42,12 +43,11 @@ import einops
 torch.manual_seed(42)
 
 class FnoFull(pl.LightningModule):
-    def __init__(self, model_fno, loss_function, eval_dataset_full_image=None):
+    def __init__(self, model_fno, loss_function):
         super().__init__()
 
         self.model = model_fno
         self.loss_function = loss_function
-        self.eval_dataset_full_image = eval_dataset_full_image
 
         self.loss_mse = torch.nn.MSELoss()
 
@@ -58,42 +58,39 @@ class FnoFull(pl.LightningModule):
 
         batch_size = graph.ptr.shape[0] - 1
 
+        size_image = math.sqrt(int(nodes.shape[0] / batch_size))
+
         nodes = einops.rearrange(nodes, "(b n) d -> b n d", b=batch_size)
+        images = einops.rearrange(nodes, "b (s s) d -> b s s n", s=int(size_image))
 
-        result = self.model(nodes)
+        result = self.model(images)
 
-        # we reshape the result to have the same shape as the input
-        result = result.reshape(-1, 1)
+        result = einops.rearrange(result, "b s s n -> b (s s) n")
+
+        result = einops.rearrange(result, "b n d -> (b n) d")
 
         return result
 
     def training_step(self, batch, batch_idx):
         
-        graph_t_1 = batch
-        edge_index = graph_t_1.edge_index
-        edges = graph_t_1.edge_attr
-        nodes = graph_t_1.x
-        mask = graph_t_1.mask
+        graph_a_x = batch
+        edge_index = graph_a_x.edge_index
+        edges = graph_a_x.edge_attr
+        nodes = graph_a_x.x
+        mask = graph_a_x.mask
 
         # forward pass
-        nodes_pred = self.forward(graph_t_1)
+        nodes_pred = self.forward(graph_a_x)
 
         # we create the two graphs
         graph_pred = Data(x=nodes_pred, edge_index=edge_index, edge_attr=edges)
 
-        graph_baseline = Data(x=self.baseline(nodes), edge_index=edge_index, edge_attr=edges)
-
         # compute loss
         relative_loss = self.loss_function(graph_pred, graph_t_1, mask)
 
-        relative_loss_baseline = self.loss_function(graph_baseline, graph_t_1)
-
         loss = self.loss_mse(relative_loss, torch.zeros_like(relative_loss))
 
-        loss_baseline = self.loss_mse(relative_loss_baseline, torch.zeros_like(relative_loss_baseline))
-
         self.log("train_loss", loss)
-        self.log("train_loss_baseline", loss_baseline)
 
         return loss
 
@@ -133,13 +130,7 @@ def train():
 
     # init dataset and dataloader
     path = "/app/data/1D_Burgers_Sols_Nu0.01.hdf5"
-    dataset = BurgerPDEDataset(path_hdf5=path, edges=edges, edges_index=edges_index, mask=mask)
-
-    # init dataset for full image
-    dataset_full_image = BurgerPDEDatasetFullSimulation(path_hdf5=path, edges=edges, edges_index=edges_index, mask=mask)
-
-    # we take a subset of the dataset
-    dataset = torch.utils.data.Subset(dataset, range(0, 80000))
+    dataset = Darcy2DPDEDataset(path_hdf5=path)
 
     # divide into train and test
     train_size = int(0.95 * len(dataset))
@@ -152,21 +143,20 @@ def train():
 
     # init model
     input_dim = 3
-    in_dim_edge = 1
-    out_dim = 1
+
 
     modes = 16
     width = 64
 
     # we create the model
-    model = FNO1d(modes, width, delta_t=delta_t, input_dim=input_dim)
+    model = FNO2d(modes, width, delta_t=delta_t, input_dim=input_dim)
 
     # we create the burger function
-    burger_loss = BurgerDissipativeMixLossOperator(index_derivative_node=0, index_derivative_edge=0, 
+    burger_loss = DarcyFlowOperator(index_derivative_node=0, index_derivative_edge=0, 
                                                                                         delta_t=delta_t, delta_x=delta_x, mu=0.01)
 
     # we create the trainer
-    gnn_full = FnoFull(model, burger_loss, eval_dataset_full_image=dataset_full_image)
+    gnn_full = FnoFull(model, burger_loss)
 
     # we create the trainer with the logger
     # init wandb key
@@ -177,14 +167,14 @@ def train():
     os.environ['WANDB_API_KEY'] = key
     wandb.init(project='1D_Burgers', entity='forbu14')
     
-    wandb_logger = pl.loggers.WandbLogger(project="1D_Burgers", name="GNN_1D_Burgers")
+    wandb_logger = pl.loggers.WandbLogger(project="2D_Darcy", name="FN02d_2D_Darcy")
     trainer = pl.Trainer(max_epochs=10, logger=wandb_logger, gradient_clip_val=0.5, accumulate_grad_batches=2)
 
     # we train
     trainer.fit(gnn_full, dataloader_train, dataloader_test)
 
     # we save the model
-    torch.save(trainer.model.state_dict(), "models_params/burger_model.pt")
+    torch.save(trainer.model.state_dict(), "models_params/darcy_model.pt")
 
     return gnn_full
 

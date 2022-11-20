@@ -66,12 +66,17 @@ class DarcyFlowOperator(Module):
         self.nabla2d_operator = Nabla2DOperator(delta_x=delta_x, delta_y=delta_y)
         self.nabla2d_product_operator = Nabla2DProductOperator(delta_x=delta_x, delta_y=delta_y)
 
-    def forward(self, out, a_x, f, mask=None):
+    def forward(self, out, a_x, f=1, mask=None):
+        """
+        out and a_x aare graphs
+        out is the output of the neural network (FNO)
+        a_x is the input of the neural network (FNO)
+        """
 
         # first we compute the nabla of the out
         nabla2d_out = self.nabla2d_operator(out) # shape (nb_node, 2)
 
-        tmp_flow = a_x * nabla2d_out # shape (nb_node, 2)
+        tmp_flow = a_x.x * nabla2d_out # shape (nb_node, 2)
 
         # create the graph
         tmp_flow_graph = Data(x=tmp_flow, edge_index=out.edge_index, edge_attr=out.edge_attr)
