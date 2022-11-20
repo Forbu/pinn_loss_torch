@@ -129,7 +129,7 @@ def train():
     delta_x = 1.0 / nb_space
     delta_y = delta_x
 
-    batch_size = 16
+    batch_size = 8
 
     # init dataset and dataloader
     path = "/app/data/2D_DarcyFlow_beta1.0_Train.hdf5"
@@ -146,13 +146,11 @@ def train():
 
     # init model
     input_dim = 3
-
-
     modes = 16
-    width = 64
+    width = 32
 
     # we create the model
-    model = FNO2d(modes1=16, modes2=16,  width=16, input_dim=3)
+    model = FNO2d(modes1=modes, modes2=modes,  width=width, input_dim=input_dim)
 
     # we create the burger function
     burger_loss = DarcyFlowOperator(index_derivative_node=0, index_derivative_x=1, index_derivative_y=1, delta_y=delta_y, delta_x=delta_x)
@@ -167,9 +165,9 @@ def train():
         key = f.read()
 
     os.environ['WANDB_API_KEY'] = key
-    wandb.init(project='1D_Burgers', entity='forbu14')
+    wandb.init(project='2D_Darcy', entity='forbu14')
     
-    wandb_logger = pl.loggers.WandbLogger(project="2D_Darcy", name="FN02d_2D_Darcy")
+    wandb_logger = pl.loggers.WandbLogger(project="2D_Darcy", name="2D_Darcy")
     trainer = pl.Trainer(max_epochs=10, logger=wandb_logger, gradient_clip_val=0.5, accumulate_grad_batches=2)
 
     # we train
