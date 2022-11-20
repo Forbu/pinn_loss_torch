@@ -27,7 +27,7 @@ class Nabla2DOperator(Module):
         derivative_y = self.derivative_y(graph)
 
         # we compute the nabla2d
-        nabla2d = torch.cat((derivative_x, derivative_y), dim=1)
+        nabla2d = torch.cat((derivative_x.reshape((-1, 1)), derivative_y.reshape((-1, 1))), dim=1)
 
         return nabla2d
 
@@ -73,8 +73,11 @@ class DarcyFlowOperator(Module):
 
         tmp_flow = a_x * nabla2d_out # shape (nb_node, 2)
 
+        # create the graph
+        tmp_flow_graph = Data(x=tmp_flow, edge_index=out.edge_index, edge_attr=out.edge_attr)
+
         # we compute the nabla of the tmp_flow
-        nabla2d_tmp_flow = self.nabla2d_product_operator(tmp_flow) # shape (nb_node, 1)
+        nabla2d_tmp_flow = self.nabla2d_product_operator(tmp_flow_graph) # shape (nb_node, 1)
 
         pde_loss = nabla2d_tmp_flow - f
 
