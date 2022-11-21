@@ -31,9 +31,6 @@ class EdgeSpatialDerivative(Module):
         """
         local_derivative = (dest - src) / edge_attr
 
-        # return None if edge_attr is 0
-        local_derivative = torch.where(edge_attr == 0, torch.zeros_like(local_derivative) - 99, local_derivative)
-
         return local_derivative
 
 class NodeSpatialDerivative(Module):
@@ -50,11 +47,7 @@ class NodeSpatialDerivative(Module):
         """
         nb_node = x.shape[0]
 
-        # delete edge_attr == -99999
-        edge_index_tmp = edge_index[:, edge_attr != -99]
-        edge_attr_tmp = edge_attr[edge_attr != -99]
-
-        derivative = scatter_mean(edge_attr_tmp, edge_index_tmp[1], dim=0, dim_size=nb_node)
+        derivative = scatter_mean(edge_attr, edge_index[1], dim=0, dim_size=nb_node)
         return derivative
 
 

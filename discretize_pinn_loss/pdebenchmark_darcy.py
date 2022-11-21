@@ -158,7 +158,6 @@ class Darcy2DPDEDataset(GeometricDataset):
                     edge_index=torch.tensor(self.edges_index, dtype=torch.long),
                     edge_attr=torch.tensor(self.edges_attrib, dtype=torch.float))
                     
-
         return data
         
 
