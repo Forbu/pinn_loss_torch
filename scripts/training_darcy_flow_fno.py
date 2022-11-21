@@ -64,10 +64,7 @@ class FnoFull(pl.LightningModule):
 
         images = einops.rearrange(nodes, "b (s sb) d -> b s sb d", s=int(size_image), sb=int(size_image))
 
-
         result = self.model(images)
-
-
 
         result = einops.rearrange(result, "b s sb n -> b (s sb) n", s=int(size_image), sb=int(size_image))
 
@@ -115,6 +112,33 @@ class FnoFull(pl.LightningModule):
         loss = self.loss_mse(relative_loss, torch.zeros_like(relative_loss))
 
         self.log("val_loss", loss)
+
+        # now we can save the result image to wandb for visualization
+        # we need to reshape the image to be able to plot it
+        batch_size = a_x.ptr.shape[0] - 1
+
+        size_image = math.sqrt(int(a_x.x.shape[0] / batch_size))
+
+        a_x = einops.rearrange(a_x.x, "(b n) d -> b n d", b=batch_size)
+
+        a_x = einops.rearrange(a_x, "b (s sb) d -> b s sb d", s=int(size_image), sb=int(size_image))
+
+        u_x = einops.rearrange(u_x, "(b n) d -> b n d", b=batch_size)
+
+        u_x = einops.rearrange(u_x, "b (s sb) d -> b s sb d", s=int(size_image), sb=int(size_image))
+
+        # same operation for the target
+        target = batch.target
+
+        target = einops.rearrange(target, "(b n) d -> b n d", b=batch_size)
+
+        target = einops.rearrange(target, "b (s sb) d -> b s sb d", s=int(size_image), sb=int(size_image))
+
+        # now we can save the result image to wandb for visualization
+        # we need to reshape the image to be able to plot it
+        self.logger.log_image("a_x", [a_x[0].detach().cpu().numpy()], step=self.current_epoch)
+        self.logger.log_image("u_x", [u_x[0].detach().cpu().numpy()], step=self.current_epoch)
+        self.logger.log_image("target", [target[0].detach().cpu().numpy()], step=self.current_epoch)
 
         return loss
 
@@ -185,9 +209,9 @@ def train():
         key = f.read()
 
     os.environ['WANDB_API_KEY'] = key
-    #wandb.init(project='2D_Darcy', entity='forbu14')
+    wandb.init(project='2D_Darcy', entity='forbu14')
     
-    wandb_logger = None #pl.loggers.WandbLogger(project="2D_Darcy", name="2D_Darcy")
+    wandb_logger = pl.loggers.WandbLogger(project="2D_Darcy", name="2D_Darcy")
     trainer = pl.Trainer(max_epochs=10, logger=wandb_logger, gradient_clip_val=0.5, accumulate_grad_batches=2)
 
     
