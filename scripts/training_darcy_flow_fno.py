@@ -64,7 +64,10 @@ class FnoFull(pl.LightningModule):
 
         images = einops.rearrange(nodes, "b (s sb) d -> b s sb d", s=int(size_image), sb=int(size_image))
 
+
         result = self.model(images)
+
+
 
         result = einops.rearrange(result, "b s sb n -> b (s sb) n", s=int(size_image), sb=int(size_image))
 
@@ -89,10 +92,10 @@ class FnoFull(pl.LightningModule):
         # compute loss
         relative_loss = self.loss_function(graph_pred, graph_a_x)
 
-
         loss = self.loss_mse(relative_loss, torch.zeros_like(relative_loss))
 
         self.log("train_loss", loss)
+
 
         return loss
 
@@ -123,6 +126,21 @@ class FnoFull(pl.LightningModule):
         optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-3)
         return optimizer
 
+    def test_train_step(self, dataloader):
+
+        # init optimizer
+        optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-5)
+
+        with torch.autograd.detect_anomaly():
+            
+            for batch in dataloader:
+                loss = self.training_step(batch, 0)
+                print("loss", loss)
+
+                loss.backward()
+                optimizer.step()
+                optimizer.zero_grad()
+
 def train():
 
     # create domain
@@ -144,21 +162,21 @@ def train():
     train_dataset, test_dataset = torch.utils.data.random_split(dataset, [train_size, test_size])
 
     dataloader_train = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=0)
-    dataloader_test = DataLoader(test_dataset, batch_size=batch_size, shuffle=True, num_workers=0)
+    dataloader_test = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=0)
 
     # init model
     input_dim = 3
     modes = 16
-    width = 32
+    width = 16
 
     # we create the model
     model = FNO2d(modes1=modes, modes2=modes,  width=width, input_dim=input_dim)
 
     # we create the burger function
-    burger_loss = DarcyFlowOperator(index_derivative_node=0, index_derivative_x=0, index_derivative_y=1, delta_y=delta_y, delta_x=delta_x)
+    darcy_loss = DarcyFlowOperator(index_derivative_node=0, index_derivative_x=0, index_derivative_y=1, delta_y=delta_y, delta_x=delta_x)
 
     # we create the trainer
-    gnn_full = FnoFull(model, burger_loss)
+    gnn_full = FnoFull(model, darcy_loss)
 
     # we create the trainer with the logger
     # init wandb key
@@ -171,6 +189,10 @@ def train():
     
     wandb_logger = None #pl.loggers.WandbLogger(project="2D_Darcy", name="2D_Darcy")
     trainer = pl.Trainer(max_epochs=10, logger=wandb_logger, gradient_clip_val=0.5, accumulate_grad_batches=2)
+
+    
+    # test with test_train_step
+    # gnn_full.test_train_step(dataloader_train)
 
     # we train
     trainer.fit(gnn_full, dataloader_train, dataloader_test)
