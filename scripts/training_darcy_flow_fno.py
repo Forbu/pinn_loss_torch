@@ -136,9 +136,24 @@ class FnoFull(pl.LightningModule):
 
         # now we can save the result image to wandb for visualization
         # we need to reshape the image to be able to plot it
-        self.logger.log_image("a_x", [a_x[0].detach().cpu().numpy()], step=self.current_epoch)
-        self.logger.log_image("u_x", [u_x[0].detach().cpu().numpy()], step=self.current_epoch)
-        self.logger.log_image("target", [target[0].detach().cpu().numpy()], step=self.current_epoch)
+
+        # save the image into png format
+        fig, axs = plt.subplots(1, 3, figsize=(15, 5))
+
+        axs[0].imshow(a_x[0, :, :, 0].detach().cpu().numpy())
+        axs[0].set_title("a_x")
+
+        axs[1].imshow(u_x[0].detach().cpu().numpy())
+        axs[1].set_title("u_x")
+
+        axs[2].imshow(target[0].detach().cpu().numpy())
+        axs[2].set_title("target")
+
+        # save into png
+        fig.savefig("tmp.png")
+
+        self.logger.log_image("a_x u_x target", ["tmp.png"], step=self.current_epoch)
+
 
         return loss
 
@@ -190,8 +205,8 @@ def train():
 
     # init model
     input_dim = 3
-    modes = 16
-    width = 16
+    modes = 32
+    width = 32
 
     # we create the model
     model = FNO2d(modes1=modes, modes2=modes,  width=width, input_dim=input_dim)
