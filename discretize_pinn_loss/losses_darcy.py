@@ -117,7 +117,6 @@ class DarcyFlowOperator(Module):
 
         tmp_flow = a_x.x[:, [self.index_derivative_node]] * nabla2d_out # shape (nb_node, 2)
 
-
         # create the graph
         tmp_flow_graph = Data(x=tmp_flow, edge_index=out.edge_index, edge_attr=out.edge_attr)
 

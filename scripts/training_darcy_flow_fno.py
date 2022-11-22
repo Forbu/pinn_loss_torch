@@ -117,6 +117,16 @@ class FnoFull(pl.LightningModule):
         # we need to reshape the image to be able to plot it
         batch_size = a_x.ptr.shape[0] - 1
 
+        # we should also log the loss with the generated target value coming form the solver (data)
+        graph_target= Data(x=batch.target, edge_index=batch.edge_index, edge_attr=batch.edge_attr)
+
+        relative_loss_solver = self.loss_function(graph_target, batch)
+
+        loss_solver = self.loss_mse(relative_loss_solver, torch.zeros_like(relative_loss_solver))
+
+        self.log("val_loss_solver", loss_solver)
+
+
         size_image = math.sqrt(int(a_x.x.shape[0] / batch_size))
 
         a_x = einops.rearrange(a_x.x, "(b n) d -> b n d", b=batch_size)
@@ -134,26 +144,46 @@ class FnoFull(pl.LightningModule):
 
         target = einops.rearrange(target, "b (s sb) d -> b s sb d", s=int(size_image), sb=int(size_image))
 
+        #same thing on relative loss
+        relative_loss = einops.rearrange(relative_loss, "(b n) -> b n", b=batch_size)
+
+        relative_loss = einops.rearrange(relative_loss, "b (s sb) -> b s sb", s=int(size_image), sb=int(size_image))
+
+        #same thing on relative loss solver
+        relative_loss_solver = einops.rearrange(relative_loss_solver, "(b n) -> b n", b=batch_size)
+
+        relative_loss_solver = einops.rearrange(relative_loss_solver, "b (s sb) -> b s sb", s=int(size_image), sb=int(size_image))
+
         # now we can save the result image to wandb for visualization
         # we need to reshape the image to be able to plot it
 
         # save the image into png format
-        fig, axs = plt.subplots(1, 3, figsize=(15, 5))
+        fig, axs = plt.subplots(1, 5, figsize=(15, 5))
 
-        axs[0].imshow(a_x[0, :, :, 0].detach().cpu().numpy())
+        pos0 = axs[0].imshow(a_x[0, :, :, 0].detach().cpu().numpy())
         axs[0].set_title("a_x")
 
-        axs[1].imshow(u_x[0].detach().cpu().numpy())
+        pos1 = axs[1].imshow(u_x[0].detach().cpu().numpy(), vmin=target[0].detach().cpu().numpy().min(), vmax=target[0].detach().cpu().numpy().max())
         axs[1].set_title("u_x")
 
-        axs[2].imshow(target[0].detach().cpu().numpy())
+        pos2 = axs[2].imshow(target[0].detach().cpu().numpy(), vmin=target[0].detach().cpu().numpy().min(), vmax=target[0].detach().cpu().numpy().max())
         axs[2].set_title("target")
+
+        pos3 = axs[3].imshow(relative_loss[0].detach().cpu().numpy(), vmin=-10, vmax=10)
+        axs[3].set_title("relative loss pred")
+
+        pos4 = axs[4].imshow(relative_loss_solver[0].detach().cpu().numpy(), vmin=-10, vmax=10)
+        axs[4].set_title("relative loss solver")
+
+        fig.colorbar(pos0, ax=axs[0])
+        fig.colorbar(pos1, ax=axs[1])
+        fig.colorbar(pos2, ax=axs[2])
+        fig.colorbar(pos3, ax=axs[3])
+        fig.colorbar(pos4, ax=axs[4])
 
         # save into png
         fig.savefig("tmp.png")
-
         self.logger.log_image("a_x u_x target", ["tmp.png"], step=self.current_epoch)
-
 
         return loss
 
@@ -188,7 +218,7 @@ def train():
     delta_x = 1.0 / nb_space
     delta_y = delta_x
 
-    batch_size = 8
+    batch_size = 2
 
     # init dataset and dataloader
     path = "/app/data/2D_DarcyFlow_beta1.0_Train.hdf5"
