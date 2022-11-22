@@ -101,8 +101,6 @@ class FnoFull(pl.LightningModule):
 
         mask = batch.mask
 
-        print(mask.shape)
-
         # forward pass
         u_x = self.forward(a_x)
 
@@ -178,10 +176,7 @@ class FnoFull(pl.LightningModule):
 
         # save into png
         fig.savefig("tmp.png")
-
-        print("relative_loss", relative_loss[0, :, :])
-
-        
+    
 
         self.logger.log_image("a_x u_x target", ["tmp.png"], step=self.current_epoch)
 
