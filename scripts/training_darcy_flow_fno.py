@@ -178,7 +178,7 @@ class FnoFull(pl.LightningModule):
         fig.savefig("tmp.png")
     
 
-        self.logger.log_image("a_x u_x target", ["tmp.png"], step=self.current_epoch)
+        self.logger.log_image("a_x u_x target", ["tmp.png"])
 
         return loss
 
