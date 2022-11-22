@@ -40,6 +40,8 @@ import matplotlib.pyplot as plt
 
 import einops
 
+import numpy as np
+
 torch.manual_seed(42)
 
 class FnoFull(pl.LightningModule):
@@ -179,18 +181,7 @@ class FnoFull(pl.LightningModule):
 
         print("relative_loss", relative_loss[0, :, :])
 
-        # we check the repartiion of the loss
-        loss_values = relative_loss[0, :, :].detach().cpu().numpy().flatten()
-
-        import numpy as np
-
-        # we count the unique values
-        unique, counts = np.unique(loss_values, return_counts=True)
-
-        print("unique", unique)
-        print("counts", counts)
-
-        exit()
+        
 
         self.logger.log_image("a_x u_x target", ["tmp.png"], step=self.current_epoch)
 

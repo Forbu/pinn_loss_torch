@@ -60,6 +60,7 @@ def test_darcyflow_operator():
     estimated_nabla[:, 1:-1, 1] = (out_reshape[:, 2:, 0] - out_reshape[:, :-2, 0]) / (2 * delta_y)
 
 
+
     nabla2d = nabla2d_operator(out)
 
 
@@ -75,6 +76,9 @@ def test_darcyflow_operator():
     print(a_x.x[:, [index_derivative_node]].shape)
 
     a_x_flatten = einops.rearrange(a_x.x[:, [index_derivative_node]], '(h w) c -> h w c', h=img_size, w=img_size)
+
+    estimated_nabla = estimated_nabla * a_x_flatten
+
 
     # 2. plot
     fig, axs = plt.subplots(1, 6, figsize=(15, 5))
@@ -106,23 +110,38 @@ def test_darcyflow_operator():
     nabla2d_product = nabla2d_product_operator(tmp_nabla_graph)
 
     print(nabla2d_product.shape)
+
+    # estimated_nabla_product = derivative_x + derivative_y
+    estimated_nabla_product = torch.zeros((estimated_nabla.shape[0], estimated_nabla.shape[1], 1))
+    estimated_nabla_product[1:-1, 1:-1, 0] = (estimated_nabla[2:, 1:-1, 0] - estimated_nabla[:-2, 1:-1, 0])/(2 * delta_x) +\
+                         (estimated_nabla[1:-1, 2:, 1] - estimated_nabla[1:-1, :-2, 1])/(2 * delta_y)
     
-    nabla2d_product_flatten = torch.abs(einops.rearrange(nabla2d_product, '(h w) -> h w', h=img_size, w=img_size)) - 1
+    nabla2d_product_flatten = einops.rearrange(nabla2d_product, '(h w) -> h w', h=img_size, w=img_size)
+
+    # plot distribution of values of nabla2d_product
+    fig, axs = plt.subplots(1, 2, figsize=(15, 5))
+
+    # use hist and limit the range between -3 and 3
+    axs[0].hist(nabla2d_product_flatten.flatten(), bins=100, range=(-3, 3))
+
+    # save in png
+    fig.savefig("nabla2d_product_hist.png")
+    
 
     # 2. plot again
     fig, axs = plt.subplots(1, 2, figsize=(15, 5))
     
-    pos0 = axs[0].imshow(nabla2d_product_flatten[:, :], vmin=-0.5, vmax=0.5)
+    pos0 = axs[0].imshow(nabla2d_product_flatten[:, :], vmin=-5, vmax=5)
+    pos1 = axs[1].imshow(estimated_nabla_product[:, :, 0], vmin=-5, vmax=5)
 
     fig.colorbar(pos0, ax=axs[0])
+    fig.colorbar(pos1, ax=axs[1])
 
     # 3. save
     fig.savefig("tmp_nabla_product.png")
     
-    pde_loss = torch.abs(nabla2d_product - 1.0)
+    pde_loss = torch.abs(nabla2d_product + 1.0)
 
-
-    assert False
 
 
 

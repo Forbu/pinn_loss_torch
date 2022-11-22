@@ -58,8 +58,8 @@ class Nabla2DProductOperator(Module):
         self.index_derivative_x = index_derivative_x
         self.index_derivative_y = index_derivative_y
 
-        self.derivative_x = SpatialDerivativeOperator(index_derivative_node=index_derivative_node, index_derivative_edge=index_derivative_x)
-        self.derivative_y = SpatialDerivativeOperator(index_derivative_node=index_derivative_node, index_derivative_edge=index_derivative_y)
+        self.derivative_x = SpatialDerivativeOperator(index_derivative_node=index_derivative_x, index_derivative_edge=index_derivative_x)
+        self.derivative_y = SpatialDerivativeOperator(index_derivative_node=index_derivative_y, index_derivative_edge=index_derivative_y)
 
     def forward(self, graph):
 
@@ -122,7 +122,7 @@ class DarcyFlowOperator(Module):
         # we compute the nabla of the tmp_flow
         nabla2d_tmp_flow = self.nabla2d_product_operator(tmp_flow_graph) # shape (nb_node, 1)
 
-        pde_loss = nabla2d_tmp_flow - f
+        pde_loss = nabla2d_tmp_flow + f
 
         if mask is not None:
             pde_loss = pde_loss * (1 - mask)
