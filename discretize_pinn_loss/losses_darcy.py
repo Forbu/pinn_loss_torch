@@ -106,14 +106,13 @@ class DarcyFlowOperator(Module):
 
     def forward(self, out, a_x, f=1., mask=None):
         """
-        out and a_x aare graphs
+        out and a_x are graphs
         out is the output of the neural network (FNO)
         a_x is the input of the neural network (FNO)
         """
 
         # first we compute the nabla of the out
         nabla2d_out = self.nabla2d_operator(out) # shape (nb_node, 2)
-
 
         tmp_flow = a_x.x[:, [self.index_derivative_node]] * nabla2d_out # shape (nb_node, 2)
 
@@ -123,11 +122,10 @@ class DarcyFlowOperator(Module):
         # we compute the nabla of the tmp_flow
         nabla2d_tmp_flow = self.nabla2d_product_operator(tmp_flow_graph) # shape (nb_node, 1)
 
-
         pde_loss = nabla2d_tmp_flow - f
 
         if mask is not None:
-            pde_loss = pde_loss * mask
+            pde_loss = pde_loss * (1 - mask)
 
         return pde_loss
 

@@ -116,12 +116,8 @@ class Darcy2DPDEDataset(GeometricDataset):
             # we get the tensor at the index idx
             tensor = np.array(tensor_arr[idx, :, :])
 
-            # flatten the tensor to get the node
-            
-
             target = np.array(f['tensor'][idx, 0, :, :])
-            
-
+    
             # create the mask for limit condition
             mask = np.zeros_like(target)
 
@@ -156,7 +152,7 @@ class Darcy2DPDEDataset(GeometricDataset):
         # we create the data
         data = Data(x=torch.tensor(input_, dtype=torch.float), target=torch.tensor(target, dtype=torch.float),
                     edge_index=torch.tensor(self.edges_index, dtype=torch.long),
-                    edge_attr=torch.tensor(self.edges_attrib, dtype=torch.float))
+                    edge_attr=torch.tensor(self.edges_attrib, dtype=torch.float), mask=mask.squeeze())
                     
         return data
         

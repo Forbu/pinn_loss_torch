@@ -305,5 +305,3 @@ def test_fulldarcy_backward():
 
     assert x.grad is not None
 
-
-    
