@@ -329,7 +329,7 @@ def test_darcy_flow_operator_convergence():
 
     x = a_x.target.clone()
     #x = torch.randn(nb_nodes, 1, requires_grad=True)/1000.
-    x = init_solution(shape)
+    x = init_solution((1, 128, 128))
     x = torch.nn.Parameter(x)
 
     # init optimizer

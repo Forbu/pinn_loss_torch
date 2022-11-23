@@ -80,7 +80,7 @@ def init_solution(shape, xrange=[0, 1], yrange=[0, 1]):
     :param shape: shape of the image
     :return: initial solution
     """
-    I, J = shape
+    b, I, J = shape
     mid_x = (xrange[1] - xrange[0]) / 2
     mid_y = (yrange[1] - yrange[0]) / 2
 
@@ -100,6 +100,9 @@ def init_solution(shape, xrange=[0, 1], yrange=[0, 1]):
 
     # now we can flatten the initial solution
     initial_solution = initial_solution.reshape(-1, 1)
+
+    # now we reapet the initial solution b times
+    initial_solution = initial_solution.repeat(b, 1)
 
     return initial_solution
 

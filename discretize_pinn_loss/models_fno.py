@@ -8,6 +8,8 @@ import torch
 
 import torch.nn.functional as F
 
+from discretize_pinn_loss.pdebenchmark_darcy import init_solution
+
 class SpectralConv1d(nn.Module):
     def __init__(self, in_channels, out_channels, modes1):
         super(SpectralConv1d, self).__init__()
@@ -201,7 +203,12 @@ class FNO2d(nn.Module):
         self.fc2 = nn.Linear(128, 1)
 
     def forward(self, x):
-        init = x
+        # get shape in form (batchsize, x=s, y=s, c=3)
+        b, c, s, _ = x.shape
+        init = init_solution((b, s, s))
+
+        # send init to device
+        init = init.to(x.device)
 
         mask = x[:, :, :, [self.mask_index]]
         boundary = x[:, :, :, [self.limit_condition]]
@@ -234,6 +241,8 @@ class FNO2d(nn.Module):
         x = self.fc1(x)
         x = F.gelu(x)
         x = self.fc2(x)
+
+        x = x + init
 
         x = x * (1 - mask) + boundary * mask
 
