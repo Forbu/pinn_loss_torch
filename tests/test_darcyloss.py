@@ -313,14 +313,24 @@ def test_darcy_flow_operator_convergence():
     delta_y = 1./128.
 
     from discretize_pinn_loss.pdebenchmark_darcy import Darcy2DPDEDataset
+    from torch_geometric.data import Data, DataLoader
 
     path = "/app/data/2D_DarcyFlow_beta1.0_Train.hdf5"
 
     # init dataset and dataloader
-    dataset = Darcy2DPDEDataset(path, delta_x, delta_y)
+    dataset = Darcy2DPDEDataset(path_hdf5=path, delta_x=delta_x, delta_y=delta_y)
+
+    # divide into train and test
+    train_size = int(0.95 * len(dataset))
+    test_size = len(dataset) - train_size
+
+    train_dataset, test_dataset = torch.utils.data.random_split(dataset, [train_size, test_size], generator=torch.Generator().manual_seed(42))
+
+    # get the first batch of dataloader_test
+    a_x = test_dataset[1]
 
     # we take the fist sample
-    a_x = dataset[0] 
+    # a_x = dataset[0] 
 
     # we create the operator
     darcy_flow_operator = DarcyFlowOperator(delta_x=delta_x, delta_y=delta_y)
@@ -335,12 +345,19 @@ def test_darcy_flow_operator_convergence():
     # init optimizer
     optimizer = torch.optim.Adam([x], lr=1e-2)
 
+    # import MultiStepLR
+    from torch.optim.lr_scheduler import MultiStepLR
+
+    scheduler2 = MultiStepLR(optimizer, milestones=[1000, 2000, 6000, 8000, 10000], gamma=0.7)
+
     # zero grad
     optimizer.zero_grad()
 
     nb_iter = 10000
 
     loss_fn = torch.nn.MSELoss()
+
+    lost_history = []
 
     for _ in range(nb_iter):
 
@@ -350,10 +367,13 @@ def test_darcy_flow_operator_convergence():
         graph_a_x = a_x
 
         # we compute the nabla2d
-        darcy_flow = darcy_flow_operator(graph, graph_a_x)
+        darcy_flow = darcy_flow_operator(graph, graph_a_x, a_x.mask)
 
         # we compute the loss (mse)
         loss = loss_fn(darcy_flow, torch.zeros_like(darcy_flow))
+
+        # append to history
+        lost_history.append(loss.detach().cpu().item())
 
         print("loss: ", loss)
 
@@ -362,6 +382,7 @@ def test_darcy_flow_operator_convergence():
 
         # step on the optimizer
         optimizer.step()
+        scheduler2.step()
 
         # zero grad
         optimizer.zero_grad()
@@ -372,15 +393,24 @@ def test_darcy_flow_operator_convergence():
 
     import matplotlib.pyplot as plt
 
+    plt.figure()
+    plt.plot(lost_history)
+    plt.ylim(0, 1000)
+    
+    # save the image
+    plt.savefig("loss_history.png")
+
     graph_target = Data(x=a_x.target, edge_index=a_x.edge_index, edge_attr=a_x.edge_attr)
 
-    darcy_flow_target = darcy_flow_operator(graph_target, graph_a_x)
+    darcy_flow_target = darcy_flow_operator(graph_target, graph_a_x, a_x.mask)
 
     loss_target = loss_fn(darcy_flow_target, torch.zeros_like(darcy_flow_target))
 
     print("loss_target: ", loss_target)
 
     target = a_x.target.reshape(shape)
+
+    a_x_row = a_x.x[:, 0].reshape(shape)
 
     # compute vmin and vman with the target
     vmin = target.min()
@@ -390,7 +420,7 @@ def test_darcy_flow_operator_convergence():
     diff = target - x
 
     # create subplot for 2 figures : target and prediction
-    fig, ax = plt.subplots(1, 3, figsize=(10, 5))
+    fig, ax = plt.subplots(1, 4, figsize=(10, 5))
     
     # plot target
     ax[0].imshow(target.detach().numpy(), cmap="jet", vmin=vmin, vmax=vmax)
@@ -403,6 +433,10 @@ def test_darcy_flow_operator_convergence():
     # plot difference
     ax[2].imshow(diff.detach().numpy(), cmap="jet", vmin=diff.min(), vmax=diff.max())
     ax[2].set_title("difference")
+
+    # plot a_x
+    ax[3].imshow(a_x_row.detach().numpy(), cmap="jet", vmin=a_x_row.min(), vmax=a_x_row.max())
+    ax[3].set_title("a_x")
 
     print("vmin: ", diff.min())
     print("vmax: ", diff.max())

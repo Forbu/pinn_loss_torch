@@ -96,7 +96,7 @@ def init_solution(shape, xrange=[0, 1], yrange=[0, 1], node=True):
     x, y = torch.meshgrid(x, y)
 
     # we create the initial solution (lorentz function)
-    initial_solution[:, :, 0] = 1 / (2 * (1 + 2*(x - mid_x) ** 2 + 2*(y - mid_y) ** 2))
+    initial_solution[:, :, 0] = 1 / (5 + 5*(x - mid_x) ** 2 + 5*(y - mid_y) ** 2)
 
     if node:
         # now we can flatten the initial solution
