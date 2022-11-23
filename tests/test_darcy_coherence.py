@@ -59,8 +59,6 @@ def test_darcyflow_operator():
     estimated_nabla[1:-1, :, 0] = (out_reshape[2:, :, 0] - out_reshape[:-2, :, 0]) / (2 * delta_x)
     estimated_nabla[:, 1:-1, 1] = (out_reshape[:, 2:, 0] - out_reshape[:, :-2, 0]) / (2 * delta_y)
 
-
-
     nabla2d = nabla2d_operator(out)
 
 

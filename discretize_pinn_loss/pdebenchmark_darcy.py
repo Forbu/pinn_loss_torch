@@ -74,6 +74,35 @@ def create_darcy_graph(shape, delta_x, delta_y):
     return edge_index, edge_attr
 
 
+def init_solution(shape, xrange=[0, 1], yrange=[0, 1]):
+    """
+    Function that return the initial solution for a given shape
+    :param shape: shape of the image
+    :return: initial solution
+    """
+    I, J = shape
+    mid_x = (xrange[1] - xrange[0]) / 2
+    mid_y = (yrange[1] - yrange[0]) / 2
+
+    # we create the initial solution
+    initial_solution = torch.zeros(I, J, 1)
+
+    # we create the x and y coordinates
+    x = torch.linspace(xrange[0], xrange[1], I)
+
+    y = torch.linspace(yrange[0], yrange[1], J)
+
+    # we create the meshgrid
+    x, y = torch.meshgrid(x, y)
+
+    # we create the initial solution (lorentz function)
+    initial_solution[:, :, 0] = 1 / (2 * (1 + 2*(x - mid_x) ** 2 + 2*(y - mid_y) ** 2))
+
+    # now we can flatten the initial solution
+    initial_solution = initial_solution.reshape(-1, 1)
+
+    return initial_solution
+
 
 class Darcy2DPDEDataset(GeometricDataset):
     """
