@@ -164,7 +164,7 @@ class SpectralConv2d(nn.Module):
         return x
 
 class FNO2d(nn.Module):
-    def __init__(self, modes1, modes2,  width, input_dim=3, mask_index=1, limit_condition=2):
+    def __init__(self, modes1, modes2,  width, input_dim=3, mask_index=1, limit_condition=2, delta_t=0.01, index_value=0):
         super(FNO2d, self).__init__()
 
         """
@@ -187,6 +187,9 @@ class FNO2d(nn.Module):
         self.mask_index = mask_index
         self.limit_condition = limit_condition
 
+        self.delta_t = delta_t
+        self.index_value = index_value
+
         self.padding = 9 # pad the domain if input is non-periodic
         self.fc0 = nn.Linear(input_dim, self.width) # input channel is 3: (a(x, y), x, y)
 
@@ -202,16 +205,14 @@ class FNO2d(nn.Module):
         self.fc1 = nn.Linear(self.width, 128)
         self.fc2 = nn.Linear(128, 1)
 
-    def forward(self, x):
+    def forward(self, x, temporal=False):
         # get shape in form (batchsize, x=s, y=s, c=3)
         b, c, s, _ = x.shape
-        init = init_solution((b, s, s), node=False)
 
-        # send init to device
-        init = init.to(x.device)
 
         mask = x[:, :, :, [self.mask_index]]
         boundary = x[:, :, :, [self.limit_condition]]
+        init_value = x[:, :, :, [self.index_value]]
 
         x = self.fc0(x)
         x = x.permute(0, 3, 1, 2)
@@ -242,9 +243,19 @@ class FNO2d(nn.Module):
         x = F.gelu(x)
         x = self.fc2(x)
 
-        x = x + init
+        if temporal:
+            x = init_value + self.delta_t * x
 
-        x = x * (1 - mask) + boundary * mask
+            x = x * (1 - mask) + boundary * mask
+
+        else:
+            init = init_solution((b, s, s), node=False)
+
+            # send init to device
+            init = init.to(x.device)
+
+            x = x + init
+            x = x * (1 - mask) + boundary * mask
 
         return x
     
