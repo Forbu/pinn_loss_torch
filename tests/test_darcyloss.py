@@ -353,14 +353,15 @@ def test_darcy_flow_operator_convergence():
     # zero grad
     optimizer.zero_grad()
 
-    nb_iter = 10000
+    nb_iter = 20000
 
     loss_fn = torch.nn.MSELoss()
 
     lost_history = []
 
     for _ in range(nb_iter):
-
+        
+        
         y = x * (1 - a_x.mask.reshape(-1, 1))
 
         graph = Data(x=y, edge_index=a_x.edge_index, edge_attr=a_x.edge_attr)
