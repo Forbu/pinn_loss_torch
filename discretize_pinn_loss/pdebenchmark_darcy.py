@@ -74,7 +74,7 @@ def create_darcy_graph(shape, delta_x, delta_y):
     return edge_index, edge_attr
 
 
-def init_solution(shape, xrange=[0, 1], yrange=[0, 1]):
+def init_solution(shape, xrange=[0, 1], yrange=[0, 1], node=True):
     """
     Function that return the initial solution for a given shape
     :param shape: shape of the image
@@ -98,11 +98,14 @@ def init_solution(shape, xrange=[0, 1], yrange=[0, 1]):
     # we create the initial solution (lorentz function)
     initial_solution[:, :, 0] = 1 / (2 * (1 + 2*(x - mid_x) ** 2 + 2*(y - mid_y) ** 2))
 
-    # now we can flatten the initial solution
-    initial_solution = initial_solution.reshape(-1, 1)
+    if node:
+        # now we can flatten the initial solution
+        initial_solution = initial_solution.reshape(-1, 1)
 
-    # now we reapet the initial solution b times
-    initial_solution = initial_solution.repeat(b, 1)
+        # now we reapet the initial solution b times
+        initial_solution = initial_solution.repeat(b, 1)
+    else:
+        initial_solution = initial_solution.unsqueeze(0).repeat(b, 1, 1, 1)
 
     return initial_solution
 

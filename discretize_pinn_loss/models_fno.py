@@ -205,7 +205,7 @@ class FNO2d(nn.Module):
     def forward(self, x):
         # get shape in form (batchsize, x=s, y=s, c=3)
         b, c, s, _ = x.shape
-        init = init_solution((b, s, s))
+        init = init_solution((b, s, s), node=False)
 
         # send init to device
         init = init.to(x.device)
