@@ -267,7 +267,7 @@ class Darcy2DPDEDatasetTemporal(GeometricDataset):
         input_ = torch.randn_like(node)/10.0
 
         # concat node mask and limit condition as input
-        input_ = torch.cat([input_, mask, limit_condition], dim=1)
+        input_ = torch.cat([input_, mask, limit_condition, node], dim=1)
 
         # we create the data
         data = Data(x=torch.tensor(input_, dtype=torch.float), target=torch.tensor(target, dtype=torch.float),
