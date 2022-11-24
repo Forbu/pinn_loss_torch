@@ -164,7 +164,7 @@ class SpectralConv2d(nn.Module):
         return x
 
 class FNO2d(nn.Module):
-    def __init__(self, modes1, modes2,  width, input_dim=3, mask_index=1, limit_condition=2, delta_t=0.01, index_value=0):
+    def __init__(self, modes1, modes2,  width, input_dim=3, mask_index=1, limit_condition=2, delta_t=0.01, index_value=0, path_init=None):
         super(FNO2d, self).__init__()
 
         """
@@ -189,6 +189,10 @@ class FNO2d(nn.Module):
 
         self.delta_t = delta_t
         self.index_value = index_value
+
+        self.path_init = path_init
+
+        self.init_solution = torch.load(self.path_init)
 
         self.padding = 9 # pad the domain if input is non-periodic
         self.fc0 = nn.Linear(input_dim, self.width) # input channel is 3: (a(x, y), x, y)
@@ -248,7 +252,10 @@ class FNO2d(nn.Module):
             x = x * (1 - mask) + boundary * mask
 
         else:
-            init = init_solution((b, s, s), node=False)
+            init = self.init_solution.unsqueeze(0)
+
+            # now we can repeat according to the batch size
+            init = init.repeat(b, 1, 1, 1)
 
             # send init to device
             init = init.to(x.device)

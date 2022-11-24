@@ -327,7 +327,7 @@ def test_darcy_flow_operator_convergence():
     train_dataset, test_dataset = torch.utils.data.random_split(dataset, [train_size, test_size], generator=torch.Generator().manual_seed(42))
 
     # get the first batch of dataloader_test
-    a_x = test_dataset[1]
+    a_x = test_dataset[2]
 
     # we take the fist sample
     # a_x = dataset[0] 

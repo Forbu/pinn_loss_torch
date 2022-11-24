@@ -233,8 +233,10 @@ def train():
     modes = 32
     width = 32
 
+    path_init = "/app/discretize_pinn_loss/data_init/init_solution.pt"
+
     # we create the model
-    model = FNO2d(modes1=modes, modes2=modes,  width=width, input_dim=input_dim)
+    model = FNO2d(modes1=modes, modes2=modes,  width=width, input_dim=input_dim, path_init=path_init)
 
     # we create the burger function
     darcy_loss = DarcyFlowOperator(index_derivative_node=0, index_derivative_x=0, index_derivative_y=1, delta_y=delta_y, delta_x=delta_x)
