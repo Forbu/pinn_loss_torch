@@ -45,22 +45,25 @@ import numpy as np
 torch.manual_seed(42)
 
 class FnoFull(pl.LightningModule):
-    def __init__(self, model_fno, loss_function, nb_step=10):
+    def __init__(self, model_fno, loss_function, nb_step=10, delta_t=0.01, batch_size_init=8):
         super().__init__()
 
         self.model = model_fno
         self.loss_function = loss_function
 
         self.nb_step = nb_step
+        self.delta_t = delta_t 
 
         self.loss_mse = torch.nn.MSELoss()
+
+        self.batch_size_init = batch_size_init
 
     def forward(self, graph):
 
         # get the input node and reshape it because the model expects a batch
         nodes = graph.x
 
-        batch_size = graph.ptr.shape[0] - 1
+        batch_size = self.batch_size_init
 
         size_image = math.sqrt(int(nodes.shape[0] / batch_size))
 
@@ -95,9 +98,14 @@ class FnoFull(pl.LightningModule):
             graph_pred = Data(x=nodes_pred, edge_index=edge_index, edge_attr=edges)
 
             # compute loss
-            relative_loss = self.loss_function(graph_pred, graph_a_x) - (nodes_pred - graph_current.x[:, [0]])/self.delta_t
+            darcy_loss = self.loss_function(graph_pred, graph_a_x).unsqueeze(1)
+            temporal_loss = - (nodes_pred - graph_current.x[:, [0]])/self.delta_t
 
+            relative_loss = darcy_loss + temporal_loss 
             loss = self.loss_mse(relative_loss, torch.zeros_like(relative_loss))
+
+            # concat nodes_pred with mask and limit_condition
+            nodes_pred = torch.cat([nodes_pred, batch.mask.unsqueeze(1), batch.limit_condition], dim=1)
 
             # create new current graph
             graph_current = Data(x=nodes_pred, edge_index=edge_index, edge_attr=edges)
@@ -128,16 +136,20 @@ class FnoFull(pl.LightningModule):
             # forward pass
             nodes_pred = self.forward(graph_current)
 
-            # concat nodes_pred with mask and limit_condition
-            nodes_pred = torch.cat([nodes_pred, batch.mask.unsqueeze(1), batch.limit_condition], dim=1)
 
             # we create the two graphs
             graph_pred = Data(x=nodes_pred, edge_index=edge_index, edge_attr=edges)
 
             # compute loss
-            relative_loss = self.loss_function(graph_pred, graph_a_x) - (nodes_pred - graph_current.x[:, [0]])/self.delta_t
+            darcy_loss = self.loss_function(graph_pred, graph_a_x).unsqueeze(1)
+            temporal_loss = - (nodes_pred - graph_current.x[:, [0]])/self.delta_t
+
+            relative_loss = darcy_loss + temporal_loss 
 
             loss = self.loss_mse(relative_loss, torch.zeros_like(relative_loss))
+
+            # concat nodes_pred with mask and limit_condition
+            nodes_pred = torch.cat([nodes_pred, batch.mask.unsqueeze(1), batch.limit_condition], dim=1)
 
             # create new current graph
             graph_current = Data(x=nodes_pred, edge_index=edge_index, edge_attr=edges)
@@ -168,6 +180,8 @@ class FnoFull(pl.LightningModule):
 
         size_image = math.sqrt(int(graph_a_x.x.shape[0] / batch_size))
 
+        u_x = nodes_pred[:, [0]]
+
         a_x = einops.rearrange(graph_a_x.x, "(b n) d -> b n d", b=batch_size)
         a_x = einops.rearrange(a_x, "b (s sb) d -> b s sb d", s=int(size_image), sb=int(size_image))
         u_x = einops.rearrange(u_x, "(b n) d -> b n d", b=batch_size)
@@ -180,7 +194,7 @@ class FnoFull(pl.LightningModule):
         target = einops.rearrange(target, "b (s sb) d -> b s sb d", s=int(size_image), sb=int(size_image))
 
         #same thing on relative loss
-        relative_loss = einops.rearrange(relative_loss, "(b n) -> b n", b=batch_size)
+        relative_loss = einops.rearrange(relative_loss.squeeze(), "(b n) -> b n", b=batch_size)
         relative_loss = einops.rearrange(relative_loss, "b (s sb) -> b s sb", s=int(size_image), sb=int(size_image))
 
         #same thing on relative loss solver
@@ -281,7 +295,7 @@ def train():
     darcy_loss = DarcyFlowOperator(index_derivative_node=0, index_derivative_x=0, index_derivative_y=1, delta_y=delta_y, delta_x=delta_x)
 
     # we create the trainer
-    gnn_full = FnoFull(model, darcy_loss)
+    gnn_full = FnoFull(model, darcy_loss, nb_step=5, delta_t=delta_t, batch_size_init=batch_size)
 
     # we create the trainer with the logger
     # init wandb key
