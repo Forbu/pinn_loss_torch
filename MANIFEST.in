@@ -1,1 +1,2 @@
 include discretize_pinn_loss\data_init\init_solution.pt
+include requirements.txt

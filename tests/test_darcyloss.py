@@ -328,9 +328,6 @@ def test_darcy_flow_operator_convergence():
 
     # get the first batch of dataloader_test
     a_x = test_dataset[1]
-    a_x_data= torch.ones_like(a_x.x[:, [0]])/10.
-
-    a_x.x = a_x_data
 
     # we take the fist sample
     # a_x = dataset[0] 
@@ -343,6 +340,12 @@ def test_darcy_flow_operator_convergence():
     x = a_x.target.clone()
     #x = torch.randn(nb_nodes, 1, requires_grad=True)/1000.
     x = init_solution((1, 128, 128))
+    # init x with tensor file from discretize_pinn_loss\data_init\init_solution.pt
+    x = torch.load("/app/discretize_pinn_loss/data_init/init_solution.pt")
+
+    # flatten x
+    x = x.view(-1, 1)
+
     x = torch.nn.Parameter(x)
 
     # init optimizer
@@ -351,19 +354,18 @@ def test_darcy_flow_operator_convergence():
     # import MultiStepLR
     from torch.optim.lr_scheduler import MultiStepLR
 
-    scheduler2 = MultiStepLR(optimizer, milestones=[1000, 2000, 6000, 8000, 10000], gamma=0.7)
+    scheduler2 = MultiStepLR(optimizer, milestones=[1000, 2000, 6000, 8000, 10000], gamma=0.6)
 
     # zero grad
     optimizer.zero_grad()
 
-    nb_iter = 20000
+    nb_iter = 10000
 
     loss_fn = torch.nn.MSELoss()
 
     lost_history = []
 
     for _ in range(nb_iter):
-        
         
         y = x * (1 - a_x.mask.reshape(-1, 1))
 
@@ -450,6 +452,5 @@ def test_darcy_flow_operator_convergence():
 
     # save image into png
     plt.savefig("test_darcy_flow_operator_convergence.png")
-
 
     assert False
