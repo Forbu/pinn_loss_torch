@@ -209,7 +209,6 @@ class FNO2d(nn.Module):
         # get shape in form (batchsize, x=s, y=s, c=3)
         b, c, s, _ = x.shape
 
-
         mask = x[:, :, :, [self.mask_index]]
         boundary = x[:, :, :, [self.limit_condition]]
         init_value = x[:, :, :, [self.index_value]]

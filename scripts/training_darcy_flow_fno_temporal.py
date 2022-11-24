@@ -70,7 +70,7 @@ class FnoFull(pl.LightningModule):
         nodes = einops.rearrange(nodes, "(b n) d -> b n d", b=batch_size)
         images = einops.rearrange(nodes, "b (s sb) d -> b s sb d", s=int(size_image), sb=int(size_image))
 
-        result = self.model(images)
+        result = self.model(images, temporal=True)
 
         result = einops.rearrange(result, "b s sb n -> b (s sb) n", s=int(size_image), sb=int(size_image))
         result = einops.rearrange(result, "b n d -> (b n) d")
@@ -230,7 +230,6 @@ class FnoFull(pl.LightningModule):
         # save into png
         fig.savefig("tmp.png")
     
-
         self.logger.log_image("a_x u_x target", ["tmp.png"])
 
         return loss

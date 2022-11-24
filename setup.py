@@ -21,4 +21,7 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     install_requires=requirements,
+    ## add data file to package file : discretize_pinn_loss\data_init\init_solution.pt
+    package_data={'discretize_pinn_loss': ['data_init/init_solution.pt']},
+    data_files=[('discretize_pinn_loss', ['discretize_pinn_loss/data_init/init_solution.pt'])],
 )
