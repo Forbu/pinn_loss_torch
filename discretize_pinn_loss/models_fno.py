@@ -255,7 +255,8 @@ class FNO2d(nn.Module):
             init = self.init_solution.unsqueeze(0)
 
             # now we can repeat according to the batch size
-            init = init.repeat(b, 1, 1, 1)
+            init = init.repeat(b, 1, 1)
+            init = init.unsqueeze(3)
 
             # send init to device
             init = init.to(x.device)
