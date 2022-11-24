@@ -283,7 +283,7 @@ def train():
     dataloader_test = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=0)
 
     # init model
-    input_dim = 3
+    input_dim = 4
     modes = 32
     width = 32
 
