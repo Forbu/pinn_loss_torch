@@ -328,6 +328,9 @@ def test_darcy_flow_operator_convergence():
 
     # get the first batch of dataloader_test
     a_x = test_dataset[1]
+    a_x_data= torch.ones_like(a_x.x[:, [0]])/10.
+
+    a_x.x = a_x_data
 
     # we take the fist sample
     # a_x = dataset[0] 

@@ -272,7 +272,7 @@ class Darcy2DPDEDatasetTemporal(GeometricDataset):
         # we create the data
         data = Data(x=torch.tensor(input_, dtype=torch.float), target=torch.tensor(target, dtype=torch.float),
                     edge_index=torch.tensor(self.edges_index, dtype=torch.long),
-                    edge_attr=torch.tensor(self.edges_attrib, dtype=torch.float), mask=mask.squeeze(), limit_condition=limit_condition.squeeze(), a_x=node.squeeze())
+                    edge_attr=torch.tensor(self.edges_attrib, dtype=torch.float), mask=mask.squeeze(), limit_condition=limit_condition, a_x=node)
                     
         return data
         

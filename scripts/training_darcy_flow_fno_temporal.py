@@ -128,6 +128,9 @@ class FnoFull(pl.LightningModule):
             # forward pass
             nodes_pred = self.forward(graph_current)
 
+            # concat nodes_pred with mask and limit_condition
+            nodes_pred = torch.cat([nodes_pred, batch.mask.unsqueeze(1), batch.limit_condition], dim=1)
+
             # we create the two graphs
             graph_pred = Data(x=nodes_pred, edge_index=edge_index, edge_attr=edges)
 
