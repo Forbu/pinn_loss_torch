@@ -1,7 +1,7 @@
 import pytest
 
 
-from discretize_pinn_loss.losses_darcy import Nabla2DOperator, Nabla2DProductOperator, DarcyFlowOperator
+from discretize_pinn_loss.losses_darcy import Nabla2DOperator, Nabla2DProductOperator, DarcyFlowOperator, DarcyLoss
 from discretize_pinn_loss.loss_operator import SpatialDerivativeOperator
 from discretize_pinn_loss.pdebenchmark_darcy import create_darcy_graph
 from discretize_pinn_loss.pdebenchmark_darcy import Darcy2DPDEDataset, create_darcy_graph
@@ -140,6 +140,65 @@ def test_darcyflow_operator():
     
     pde_loss = torch.abs(nabla2d_product + 1.0)
 
+def test_darcyloss():
+    """
+    In this script we will test the darcy loss (DarcyLoss) and compare it to the old one (DarcyFlowOperator)
+    """
+    # we create the operator
+    delta_x = 1./128
+    delta_y = 1./128
+
+    index_derivative_node = 0
+    index_derivative_x = 0
+    index_derivative_y = 1
+
+    img_size = 128
+
+    # init mse loss function
+    mse_loss = torch.nn.MSELoss()
+
+    # load dataset
+    # init dataset and dataloader
+    path = "/app/data/2D_DarcyFlow_beta1.0_Train.hdf5"
+    dataset = Darcy2DPDEDataset(path_hdf5=path, delta_x=delta_x, delta_y=delta_y)
+
+    # dataloader
+    dataloader = DataLoader(dataset, batch_size=1, shuffle=False)
+
+    # extract one batch
+    batch = next(iter(dataloader))
+
+    # now that we have a batch of data
+    # init darcy flow operator
+    darcy_flow_operator = DarcyFlowOperator(delta_x=delta_x, delta_y=delta_y)
+    darcy_loss_new_operator = DarcyLoss(delta_x=delta_x, delta_y=delta_y)
+
+    # retrieve out and a_x
+    out = batch.target
+
+    a_x = batch.x[:, [0]]
+
+    print(a_x.shape)
+    print(out.shape)
+
+    # create graph from a_x and out
+    a_x_graph = Data(x=a_x, edge_index=batch.edge_index, edge_attr=batch.edge_attr)
+    out_graph = Data(x=out, edge_index=batch.edge_index, edge_attr=batch.edge_attr)
+
+    #now we can apply the two operators and compute the loss
+    darcy_loss = darcy_flow_operator(out_graph, a_x_graph)
+    darcy_loss_new = darcy_loss_new_operator(out_graph, a_x_graph)
+
+    # compute the loss for each operator
+    loss = mse_loss(darcy_loss, torch.zeros_like(darcy_loss))
+    loss_new = mse_loss(darcy_loss_new, torch.zeros_like(darcy_loss_new))
+
+    print("loss: ", loss)
+    print("loss_new: ", loss_new)
+
+
+    assert False
+    
 
 
 

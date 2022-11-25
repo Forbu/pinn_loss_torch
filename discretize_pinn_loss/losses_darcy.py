@@ -222,9 +222,12 @@ class DarcyLoss(Module):
 
         # we compute the local derivative of the edge
         if index_derivative == 0:
-            node_attrib_derivative, _, _ = self.spatial_derivator_x(graph.x, edge_index_tmp, edge_attrib_tmp)
+            # create graph
+            graph_tmp = Data(x=graph.x, edge_index=edge_index_tmp, edge_attr=edge_attrib_tmp)
+            node_attrib_derivative = self.spatial_derivator_x(graph_tmp)
         elif index_derivative == 1:
-            node_attrib_derivative, _, _ = self.spatial_derivator_y(graph.x, edge_index_tmp, edge_attrib_tmp)
+            graph_tmp = Data(x=graph.x, edge_index=edge_index_tmp, edge_attr=edge_attrib_tmp)
+            node_attrib_derivative = self.spatial_derivator_y(graph_tmp)
 
         return node_attrib_derivative
 
@@ -273,11 +276,9 @@ class DarcyLoss(Module):
         loss = (a_x_plus_delta_x_2 * u_x_plus_delta_x - a_x_minus_delta_x_2 * u_x_minus_delta_x)/self.delta_x + \
                 (a_y_plus_delta_y_2 * u_y_plus_delta_y - a_y_minus_delta_y_2 * u_y_minus_delta_y)/self.delta_y + f
 
+        print(a_x_plus_delta_x_2)
+
         if mask is not None:
             loss = loss[mask]
 
         return loss
-
-
-
-
