@@ -274,10 +274,10 @@ class DarcyLoss(Module):
 
         # now we can compute the loss
         loss = (a_x_plus_delta_x_2 * u_x_plus_delta_x - a_x_minus_delta_x_2 * u_x_minus_delta_x)/self.delta_x + \
-                (a_y_plus_delta_y_2 * u_y_plus_delta_y - a_y_minus_delta_y_2 * u_y_minus_delta_y)/self.delta_y + f
+                (a_y_plus_delta_y_2 * u_y_plus_delta_y - a_y_minus_delta_y_2 * u_y_minus_delta_y)/self.delta_y - f
 
         if mask is not None:
-            loss = loss * mask.unsqueeze(1)
+            loss = loss * (1 - mask.unsqueeze(1))
 
         print(loss.shape)
 
