@@ -261,24 +261,24 @@ class DarcyLoss(Module):
         # we compute the derivative of the node for x and y
         # in upward and backward direction
         bool_index = (edge_attr[:, self.index_derivative_x] > 0)
-        u_x_plus_delta_x = self.compute_local_derivative(out, bool_index, self.index_derivative_x)
+        u_x_plus_delta_x = self.compute_local_derivative(out, bool_index, self.index_derivative_x).unsqueeze(1)
 
         bool_index = (edge_attr[:, self.index_derivative_x] < 0)
-        u_x_minus_delta_x = self.compute_local_derivative(out, bool_index, self.index_derivative_x)
+        u_x_minus_delta_x = self.compute_local_derivative(out, bool_index, self.index_derivative_x).unsqueeze(1)
 
         bool_index = (edge_attr[:, self.index_derivative_y] > 0)
-        u_y_plus_delta_y = self.compute_local_derivative(out, bool_index, self.index_derivative_y)
+        u_y_plus_delta_y = self.compute_local_derivative(out, bool_index, self.index_derivative_y).unsqueeze(1)
 
         bool_index = (edge_attr[:, self.index_derivative_y] < 0)
-        u_y_minus_delta_y = self.compute_local_derivative(out, bool_index, self.index_derivative_y)
+        u_y_minus_delta_y = self.compute_local_derivative(out, bool_index, self.index_derivative_y).unsqueeze(1)
 
         # now we can compute the loss
         loss = (a_x_plus_delta_x_2 * u_x_plus_delta_x - a_x_minus_delta_x_2 * u_x_minus_delta_x)/self.delta_x + \
                 (a_y_plus_delta_y_2 * u_y_plus_delta_y - a_y_minus_delta_y_2 * u_y_minus_delta_y)/self.delta_y + f
 
-        print(a_x_plus_delta_x_2)
-
         if mask is not None:
-            loss = loss[mask]
+            loss = loss * mask.unsqueeze(1)
 
-        return loss
+        print(loss.shape)
+
+        return loss, u_x_plus_delta_x, u_x_minus_delta_x, u_y_plus_delta_y, u_y_minus_delta_y, a_x_plus_delta_x_2, a_x_minus_delta_x_2, a_y_plus_delta_y_2, a_y_minus_delta_y_2

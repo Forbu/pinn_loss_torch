@@ -248,7 +248,6 @@ class FNO2d(nn.Module):
 
         if temporal:
             x = init_value + self.delta_t * x
-
             x = x * (1 - mask) + boundary * mask
 
         else:
