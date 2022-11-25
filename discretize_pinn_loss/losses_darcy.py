@@ -163,6 +163,7 @@ class NodeSpatialAverage(Module):
         """
         nb_node = x.shape[0]
         average = scatter_mean(edge_attr, edge_index[1], dim=0, dim_size=nb_node)
+        average = (average + x) / 2
 
         return average
 
