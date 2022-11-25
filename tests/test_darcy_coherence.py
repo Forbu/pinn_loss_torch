@@ -181,99 +181,100 @@ def test_darcyloss():
     darcy_flow_operator = DarcyFlowOperator(delta_x=delta_x, delta_y=delta_y)
     darcy_loss_new_operator = DarcyLoss(delta_x=delta_x, delta_y=delta_y)
 
-    # retrieve out and a_x
-    out = batch.target
+    with torch.autograd.detect_anomaly():
+        # retrieve out and a_x
+        out = batch.target
 
-    a_x = batch.x[:, [0]]
+        a_x = batch.x[:, [0]]
 
-    print(a_x.shape)
-    print(out.shape)
+        print(a_x.shape)
+        print(out.shape)
 
-    # create graph from a_x and out
-    a_x_graph = Data(x=a_x, edge_index=batch.edge_index, edge_attr=batch.edge_attr)
-    out_graph = Data(x=out, edge_index=batch.edge_index, edge_attr=batch.edge_attr)
+        # create graph from a_x and out
+        a_x_graph = Data(x=a_x, edge_index=batch.edge_index, edge_attr=batch.edge_attr)
+        out_graph = Data(x=out, edge_index=batch.edge_index, edge_attr=batch.edge_attr)
 
-    #now we can apply the two operators and compute the loss
-    darcy_loss = darcy_flow_operator(out_graph, a_x_graph, mask=batch.mask).unsqueeze(1)
-    darcy_loss_new, u_x_plus_delta_x, u_x_minus_delta_x, u_y_plus_delta_y, u_y_minus_delta_y, a_x_plus_delta_x_2, a_x_minus_delta_x_2, a_y_plus_delta_y_2, a_y_minus_delta_y_2 = darcy_loss_new_operator(out_graph, a_x_graph, mask=batch.mask)
+        #now we can apply the two operators and compute the loss
+        darcy_loss = darcy_flow_operator(out_graph, a_x_graph, mask=batch.mask).unsqueeze(1)
+        darcy_loss_new, u_x_plus_delta_x, u_x_minus_delta_x, u_y_plus_delta_y, u_y_minus_delta_y, a_x_plus_delta_x_2, a_x_minus_delta_x_2, a_y_plus_delta_y_2, a_y_minus_delta_y_2 = darcy_loss_new_operator(out_graph, a_x_graph, mask=batch.mask)
 
-    
-    print(darcy_loss.shape)
-    print(darcy_loss_new.shape)
+        
+        print(darcy_loss.shape)
+        print(darcy_loss_new.shape)
 
-    # compute the loss for each operator
-    loss = mse_loss(darcy_loss, torch.zeros_like(darcy_loss))
-    loss_new = mse_loss(darcy_loss_new, torch.zeros_like(darcy_loss_new))
+        # compute the loss for each operator
+        loss = mse_loss(darcy_loss, torch.zeros_like(darcy_loss))
+        loss_new = mse_loss(darcy_loss_new, torch.zeros_like(darcy_loss_new))
 
-    def reshape_tensor(tensor):
-        return einops.rearrange(tensor, '(h w) d -> h w d', h=img_size, w=img_size)
+        def reshape_tensor(tensor):
+            return einops.rearrange(tensor, '(h w) d -> h w d', h=img_size, w=img_size)
 
-    # reshape tensors
-    u_x_plus_delta_x = reshape_tensor(u_x_plus_delta_x)
-    u_x_minus_delta_x = reshape_tensor(u_x_minus_delta_x)
-    u_y_plus_delta_y = reshape_tensor(u_y_plus_delta_y)
-    u_y_minus_delta_y = reshape_tensor(u_y_minus_delta_y)
-    a_x_plus_delta_x_2 = reshape_tensor(a_x_plus_delta_x_2)
-    a_x_minus_delta_x_2 = reshape_tensor(a_x_minus_delta_x_2)
-    a_y_plus_delta_y_2 = reshape_tensor(a_y_plus_delta_y_2)
-    a_y_minus_delta_y_2 = reshape_tensor(a_y_minus_delta_y_2)
+        # reshape tensors
+        u_x_plus_delta_x = reshape_tensor(u_x_plus_delta_x)
+        u_x_minus_delta_x = reshape_tensor(u_x_minus_delta_x)
+        u_y_plus_delta_y = reshape_tensor(u_y_plus_delta_y)
+        u_y_minus_delta_y = reshape_tensor(u_y_minus_delta_y)
+        a_x_plus_delta_x_2 = reshape_tensor(a_x_plus_delta_x_2)
+        a_x_minus_delta_x_2 = reshape_tensor(a_x_minus_delta_x_2)
+        a_y_plus_delta_y_2 = reshape_tensor(a_y_plus_delta_y_2)
+        a_y_minus_delta_y_2 = reshape_tensor(a_y_minus_delta_y_2)
 
-    # reshape loss
-    darcy_loss = reshape_tensor(darcy_loss)
-    darcy_loss_new = reshape_tensor(darcy_loss_new)
-
-
-    print("loss: ", loss)
-    print("loss_new: ", loss_new)
-
-    # now we can plot the results
-    # 1. plot every variable
-    fig, axs = plt.subplots(1, 8, figsize=(15, 5))
-
-    pos0 = axs[0].imshow(u_x_plus_delta_x[:, :, 0].reshape(img_size, img_size), vmin=-1, vmax=1)
-    pos1 = axs[1].imshow(u_x_minus_delta_x[:, :, 0].reshape(img_size, img_size), vmin=-1, vmax=1)
-    pos2 = axs[2].imshow(u_y_plus_delta_y[:, :, 0].reshape(img_size, img_size), vmin=-1, vmax=1)
-    pos3 = axs[3].imshow(u_y_minus_delta_y[:, :, 0].reshape(img_size, img_size), vmin=-1, vmax=1)
-    pos4 = axs[4].imshow(a_x_plus_delta_x_2[:, :, 0].reshape(img_size, img_size), vmin=-1, vmax=1)
-    pos5 = axs[5].imshow(a_x_minus_delta_x_2[:, :, 0].reshape(img_size, img_size), vmin=-1, vmax=1)
-    pos6 = axs[6].imshow(a_y_plus_delta_y_2[:, :, 0].reshape(img_size, img_size), vmin=-1, vmax=1)
-    pos7 = axs[7].imshow(a_y_minus_delta_y_2[:, :, 0].reshape(img_size, img_size), vmin=-1, vmax=1)
-
-    # titles
-    axs[0].set_title("u_x_plus_delta_x")
-    axs[1].set_title("u_x_minus_delta_x")
-    axs[2].set_title("u_y_plus_delta_y")
-    axs[3].set_title("u_y_minus_delta_y")
-    axs[4].set_title("a_x_plus_delta_x_2")
-    axs[5].set_title("a_x_minus_delta_x_2")
-    axs[6].set_title("a_y_plus_delta_y_2")
-    axs[7].set_title("a_y_minus_delta_y_2")
+        # reshape loss
+        darcy_loss = reshape_tensor(darcy_loss)
+        darcy_loss_new = reshape_tensor(darcy_loss_new)
 
 
-    fig.colorbar(pos0, ax=axs[0])
-    fig.colorbar(pos1, ax=axs[1])
-    fig.colorbar(pos2, ax=axs[2])
-    fig.colorbar(pos3, ax=axs[3])
-    fig.colorbar(pos4, ax=axs[4])
-    fig.colorbar(pos5, ax=axs[5])
-    fig.colorbar(pos6, ax=axs[6])
-    fig.colorbar(pos7, ax=axs[7])
+        print("loss: ", loss)
+        print("loss_new: ", loss_new)
 
-    # save
-    fig.savefig("tmp_darcy_loss_u.png")
+        # now we can plot the results
+        # 1. plot every variable
+        fig, axs = plt.subplots(1, 8, figsize=(15, 5))
 
-    # 2. plot again
-    fig, axs = plt.subplots(1, 2, figsize=(15, 5))
+        pos0 = axs[0].imshow(u_x_plus_delta_x[:, :, 0].reshape(img_size, img_size), vmin=-1, vmax=1)
+        pos1 = axs[1].imshow(u_x_minus_delta_x[:, :, 0].reshape(img_size, img_size), vmin=-1, vmax=1)
+        pos2 = axs[2].imshow(u_y_plus_delta_y[:, :, 0].reshape(img_size, img_size), vmin=-1, vmax=1)
+        pos3 = axs[3].imshow(u_y_minus_delta_y[:, :, 0].reshape(img_size, img_size), vmin=-1, vmax=1)
+        pos4 = axs[4].imshow(a_x_plus_delta_x_2[:, :, 0].reshape(img_size, img_size), vmin=-1, vmax=1)
+        pos5 = axs[5].imshow(a_x_minus_delta_x_2[:, :, 0].reshape(img_size, img_size), vmin=-1, vmax=1)
+        pos6 = axs[6].imshow(a_y_plus_delta_y_2[:, :, 0].reshape(img_size, img_size), vmin=-1, vmax=1)
+        pos7 = axs[7].imshow(a_y_minus_delta_y_2[:, :, 0].reshape(img_size, img_size), vmin=-1, vmax=1)
 
-    pos0 = axs[0].imshow(darcy_loss[:, :, 0].reshape(img_size, img_size), vmin=-5, vmax=5)
-    pos1 = axs[1].imshow(darcy_loss_new[:, :, 0].reshape(img_size, img_size), vmin=-5, vmax=5)
+        # titles
+        axs[0].set_title("u_x_plus_delta_x")
+        axs[1].set_title("u_x_minus_delta_x")
+        axs[2].set_title("u_y_plus_delta_y")
+        axs[3].set_title("u_y_minus_delta_y")
+        axs[4].set_title("a_x_plus_delta_x_2")
+        axs[5].set_title("a_x_minus_delta_x_2")
+        axs[6].set_title("a_y_plus_delta_y_2")
+        axs[7].set_title("a_y_minus_delta_y_2")
 
-    fig.colorbar(pos0, ax=axs[0])
-    fig.colorbar(pos1, ax=axs[1])
 
-    # 3. save
+        fig.colorbar(pos0, ax=axs[0])
+        fig.colorbar(pos1, ax=axs[1])
+        fig.colorbar(pos2, ax=axs[2])
+        fig.colorbar(pos3, ax=axs[3])
+        fig.colorbar(pos4, ax=axs[4])
+        fig.colorbar(pos5, ax=axs[5])
+        fig.colorbar(pos6, ax=axs[6])
+        fig.colorbar(pos7, ax=axs[7])
 
-    fig.savefig("tmp_darcy_loss.png")
+        # save
+        fig.savefig("tmp_darcy_loss_u.png")
+
+        # 2. plot again
+        fig, axs = plt.subplots(1, 2, figsize=(15, 5))
+
+        pos0 = axs[0].imshow(darcy_loss[:, :, 0].reshape(img_size, img_size), vmin=-5, vmax=5)
+        pos1 = axs[1].imshow(darcy_loss_new[:, :, 0].reshape(img_size, img_size), vmin=-5, vmax=5)
+
+        fig.colorbar(pos0, ax=axs[0])
+        fig.colorbar(pos1, ax=axs[1])
+
+        # 3. save
+
+        fig.savefig("tmp_darcy_loss.png")
 
 
     assert False

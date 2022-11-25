@@ -280,6 +280,4 @@ class DarcyLoss(Module):
         if mask is not None:
             loss = loss * (1 - mask.unsqueeze(1))
 
-        print(loss.shape)
-
-        return loss, u_x_plus_delta_x, u_x_minus_delta_x, u_y_plus_delta_y, u_y_minus_delta_y, a_x_plus_delta_x_2, a_x_minus_delta_x_2, a_y_plus_delta_y_2, a_y_minus_delta_y_2
+        return loss
