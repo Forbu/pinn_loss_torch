@@ -194,11 +194,14 @@ def test_darcyloss():
         a_x_graph = Data(x=a_x, edge_index=batch.edge_index, edge_attr=batch.edge_attr)
         out_graph = Data(x=out, edge_index=batch.edge_index, edge_attr=batch.edge_attr)
 
+        print(a_x_graph)
+        print(out_graph)
+
         #now we can apply the two operators and compute the loss
         darcy_loss = darcy_flow_operator(out_graph, a_x_graph, mask=batch.mask).unsqueeze(1)
-        darcy_loss_new, u_x_plus_delta_x, u_x_minus_delta_x, u_y_plus_delta_y, u_y_minus_delta_y, a_x_plus_delta_x_2, a_x_minus_delta_x_2, a_y_plus_delta_y_2, a_y_minus_delta_y_2 = darcy_loss_new_operator(out_graph, a_x_graph, mask=batch.mask)
+        darcy_loss_new = darcy_loss_new_operator(out_graph, a_x_graph, mask=batch.mask)
 
-        
+        """
         print(darcy_loss.shape)
         print(darcy_loss_new.shape)
 
@@ -275,7 +278,7 @@ def test_darcyloss():
         # 3. save
 
         fig.savefig("tmp_darcy_loss.png")
-
+        """
 
     assert False
     

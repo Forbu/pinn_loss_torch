@@ -21,7 +21,7 @@ sys.path.append("/app/")
 
 from discretize_pinn_loss.pdebenchmark_darcy import Darcy2DPDEDataset
 from discretize_pinn_loss.models_fno import FNO2d
-from discretize_pinn_loss.losses_darcy import DarcyFlowOperator
+from discretize_pinn_loss.losses_darcy import DarcyFlowOperator, DarcyLoss
 
 import pytorch_lightning as pl
 
@@ -107,8 +107,14 @@ class FnoFull(pl.LightningModule):
         # we create the two graphs
         graph_pred = Data(x=u_x, edge_index=a_x.edge_index, edge_attr=a_x.edge_attr)
 
+        print("graph_pred", graph_pred)
+        print("a_x", a_x)
+
         # compute loss
         relative_loss = torch.abs(self.loss_function(graph_pred, a_x, mask))
+
+        print("relative_loss", relative_loss.shape)
+
 
         loss = self.loss_mse(relative_loss, torch.zeros_like(relative_loss))
 
@@ -141,11 +147,11 @@ class FnoFull(pl.LightningModule):
         target = einops.rearrange(target, "b (s sb) d -> b s sb d", s=int(size_image), sb=int(size_image))
 
         #same thing on relative loss
-        relative_loss = einops.rearrange(relative_loss, "(b n) -> b n", b=batch_size)
+        relative_loss = einops.rearrange(relative_loss.squeeze(), "(b n) -> b n", b=batch_size)
         relative_loss = einops.rearrange(relative_loss, "b (s sb) -> b s sb", s=int(size_image), sb=int(size_image))
 
         #same thing on relative loss solver
-        relative_loss_solver = einops.rearrange(relative_loss_solver, "(b n) -> b n", b=batch_size)
+        relative_loss_solver = einops.rearrange(relative_loss_solver.squeeze(), "(b n) -> b n", b=batch_size)
         relative_loss_solver = einops.rearrange(relative_loss_solver, "b (s sb) -> b s sb", s=int(size_image), sb=int(size_image))
 
         # now we can save the result image to wandb for visualization
@@ -239,7 +245,7 @@ def train():
     model = FNO2d(modes1=modes, modes2=modes,  width=width, input_dim=input_dim, path_init=path_init)
 
     # we create the burger function
-    darcy_loss = DarcyFlowOperator(index_derivative_node=0, index_derivative_x=0, index_derivative_y=1, delta_y=delta_y, delta_x=delta_x)
+    darcy_loss = DarcyLoss(index_derivative_node=0, index_derivative_x=0, index_derivative_y=1, delta_y=delta_y, delta_x=delta_x)
 
     # we create the trainer
     gnn_full = FnoFull(model, darcy_loss)

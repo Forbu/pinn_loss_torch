@@ -241,6 +241,8 @@ class DarcyLoss(Module):
         edge_index = out.edge_index
         edge_attr = out.edge_attr
 
+        a_x = Data(x=a_x.x[:, [0]], edge_index=a_x.edge_index, edge_attr=a_x.edge_attr)
+
         # first we compute the a(x+delta_x/2) and a(x-delta_x/2)
         # we filter attribute of the edge to keep only edge which have non-zero delta_x and that are positive
         bool_index = (edge_attr[:, self.index_derivative_x] > 0)
@@ -277,7 +279,9 @@ class DarcyLoss(Module):
         loss = (a_x_plus_delta_x_2 * u_x_plus_delta_x - a_x_minus_delta_x_2 * u_x_minus_delta_x)/self.delta_x + \
                 (a_y_plus_delta_y_2 * u_y_plus_delta_y - a_y_minus_delta_y_2 * u_y_minus_delta_y)/self.delta_y - f
 
+
         if mask is not None:
-            loss = loss * (1 - mask.unsqueeze(1))
+            assert mask.shape == loss.shape, 'Mask shape does not match loss shape.'
+            loss = loss * (1 - mask)
 
         return loss
