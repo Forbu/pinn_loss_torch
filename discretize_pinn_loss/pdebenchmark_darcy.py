@@ -197,12 +197,16 @@ class Darcy2DPDEDatasetTemporal(GeometricDataset):
     This is a PDE dataset that we use to create our dataloader
     This is in graph mode using the torch geometric library
     """
-    def __init__(self, path_hdf5, delta_x, delta_y):
+    def __init__(self, path_hdf5, delta_x, delta_y, path_init=None):
         super(Darcy2DPDEDatasetTemporal, self).__init__()
 
         self.path_hdf5 = path_hdf5
         self.delta_x = delta_x
         self.delta_y = delta_y
+
+        self.path_init = path_init
+
+        self.init_solution = torch.load(self.path_init)
 
         with h5py.File(path_hdf5, "r") as f:
 
@@ -264,7 +268,7 @@ class Darcy2DPDEDatasetTemporal(GeometricDataset):
             mask = mask.unsqueeze(1)
 
         # create node from random normal distribution
-        input_ = torch.randn_like(node)/10.0
+        input_ = torch.randn_like(node)/10.0 + self.init_solution.reshape(-1, 1)
 
         # concat node mask and limit condition as input
         input_ = torch.cat([input_, mask, limit_condition, node], dim=1)

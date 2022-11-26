@@ -21,7 +21,7 @@ sys.path.append("/app/")
 
 from discretize_pinn_loss.pdebenchmark_darcy import Darcy2DPDEDatasetTemporal
 from discretize_pinn_loss.models_fno import FNO2d
-from discretize_pinn_loss.losses_darcy import DarcyFlowOperator
+from discretize_pinn_loss.losses_darcy import DarcyFlowOperator, DarcyLoss
 
 import pytorch_lightning as pl
 
@@ -105,7 +105,7 @@ class FnoFull(pl.LightningModule):
             loss = self.loss_mse(relative_loss, torch.zeros_like(relative_loss))
 
             # concat nodes_pred with mask and limit_condition
-            nodes_pred = torch.cat([nodes_pred, batch.mask.unsqueeze(1), batch.limit_condition], dim=1)
+            nodes_pred = torch.cat([nodes_pred, batch.mask.unsqueeze(1), batch.limit_condition, graph_current.x[:, [3]]], dim=1)
 
             # create new current graph
             graph_current = Data(x=nodes_pred, edge_index=edge_index, edge_attr=edges)
@@ -141,7 +141,7 @@ class FnoFull(pl.LightningModule):
             graph_pred = Data(x=nodes_pred, edge_index=edge_index, edge_attr=edges)
 
             # compute loss
-            darcy_loss = self.loss_function(graph_pred, graph_a_x).unsqueeze(1)
+            darcy_loss = self.loss_function(graph_pred, graph_a_x)
             temporal_loss = - (nodes_pred - graph_current.x[:, [0]])/self.delta_t
 
             relative_loss = darcy_loss + temporal_loss 
@@ -149,7 +149,7 @@ class FnoFull(pl.LightningModule):
             loss = self.loss_mse(relative_loss, torch.zeros_like(relative_loss))
 
             # concat nodes_pred with mask and limit_condition
-            nodes_pred = torch.cat([nodes_pred, batch.mask.unsqueeze(1), batch.limit_condition], dim=1)
+            nodes_pred = torch.cat([nodes_pred, batch.mask.unsqueeze(1), batch.limit_condition, graph_current.x[:, [3]]], dim=1)
 
             # create new current graph
             graph_current = Data(x=nodes_pred, edge_index=edge_index, edge_attr=edges)
@@ -172,7 +172,7 @@ class FnoFull(pl.LightningModule):
         a_x = batch.a_x
         graph_a_x = Data(x=a_x, edge_index=batch.edge_index, edge_attr=batch.edge_attr)
 
-        relative_loss_solver = torch.abs(self.loss_function(graph_target, graph_a_x, mask=batch.mask))
+        relative_loss_solver = torch.abs(self.loss_function(graph_target, graph_a_x, mask=batch.mask.unsqueeze(1)))
 
         loss_solver = self.loss_mse(relative_loss_solver, torch.zeros_like(relative_loss_solver))
 
@@ -198,7 +198,7 @@ class FnoFull(pl.LightningModule):
         relative_loss = einops.rearrange(relative_loss, "b (s sb) -> b s sb", s=int(size_image), sb=int(size_image))
 
         #same thing on relative loss solver
-        relative_loss_solver = einops.rearrange(relative_loss_solver, "(b n) -> b n", b=batch_size)
+        relative_loss_solver = einops.rearrange(relative_loss_solver.squeeze(), "(b n) -> b n", b=batch_size)
         relative_loss_solver = einops.rearrange(relative_loss_solver, "b (s sb) -> b s sb", s=int(size_image), sb=int(size_image))
 
         # now we can save the result image to wandb for visualization
@@ -269,9 +269,11 @@ def train():
 
     batch_size = 1
 
+    path_init = "/app/discretize_pinn_loss/data_init/init_solution.pt"
+
     # init dataset and dataloader
     path = "/app/data/2D_DarcyFlow_beta1.0_Train.hdf5"
-    dataset = Darcy2DPDEDatasetTemporal(path_hdf5=path, delta_x=delta_x, delta_y=delta_y)
+    dataset = Darcy2DPDEDatasetTemporal(path_hdf5=path, delta_x=delta_x, delta_y=delta_y, path_init=path_init)
 
     # divide into train and test
     train_size = int(0.95 * len(dataset))
@@ -287,11 +289,13 @@ def train():
     modes = 32
     width = 32
 
+    
+
     # we create the model
-    model = FNO2d(modes1=modes, modes2=modes,  width=width, input_dim=input_dim)
+    model = FNO2d(modes1=modes, modes2=modes,  width=width, input_dim=input_dim, path_init=path_init)
 
     # we create the burger function
-    darcy_loss = DarcyFlowOperator(index_derivative_node=0, index_derivative_x=0, index_derivative_y=1, delta_y=delta_y, delta_x=delta_x)
+    darcy_loss = DarcyLoss(index_derivative_node=0, index_derivative_x=0, index_derivative_y=1, delta_y=delta_y, delta_x=delta_x)
 
     # we create the trainer
     gnn_full = FnoFull(model, darcy_loss, nb_step=5, delta_t=delta_t, batch_size_init=batch_size)

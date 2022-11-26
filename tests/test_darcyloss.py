@@ -1,7 +1,7 @@
 import pytest
 
 
-from discretize_pinn_loss.losses_darcy import Nabla2DOperator, Nabla2DProductOperator, DarcyFlowOperator
+from discretize_pinn_loss.losses_darcy import Nabla2DOperator, Nabla2DProductOperator, DarcyFlowOperator, DarcyLoss
 from discretize_pinn_loss.loss_operator import SpatialDerivativeOperator
 from torch_geometric.data import Data
 
@@ -333,7 +333,7 @@ def test_darcy_flow_operator_convergence():
     # a_x = dataset[0] 
 
     # we create the operator
-    darcy_flow_operator = DarcyFlowOperator(delta_x=delta_x, delta_y=delta_y)
+    darcy_flow_operator = DarcyLoss(delta_x=delta_x, delta_y=delta_y)
 
     nb_nodes = 128*128
 
@@ -354,7 +354,7 @@ def test_darcy_flow_operator_convergence():
     # import MultiStepLR
     from torch.optim.lr_scheduler import MultiStepLR
 
-    scheduler2 = MultiStepLR(optimizer, milestones=[1000, 2000, 6000, 8000, 10000], gamma=0.6)
+    scheduler2 = MultiStepLR(optimizer, milestones=[100, 1000, 2000, 3000, 4000], gamma=0.3)
 
     # zero grad
     optimizer.zero_grad()
