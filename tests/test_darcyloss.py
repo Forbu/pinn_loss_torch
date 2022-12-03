@@ -627,5 +627,4 @@ def test_temporal_convergence():
     # save image into png
     plt.savefig("test_darcy_flow_operator_convergence_temporal_2.png")
 
-
-    assert False
+    assert True

@@ -1,6 +1,6 @@
 import pytest 
 
-from discretize_pinn_loss.pdebenchmark import BurgerPDEDataset, BurgerPDEDatasetFullSimulation, BurgerPDEDatasetMultiTemporal
+from discretize_pinn_loss.pdebenchmark_burger import BurgerPDEDataset, BurgerPDEDatasetFullSimulation, BurgerPDEDatasetMultiTemporal
 from discretize_pinn_loss.utils import create_graph_burger
 
 # from torch.utils.data import DataLoader
