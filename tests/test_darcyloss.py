@@ -359,7 +359,7 @@ def test_darcy_flow_operator_convergence():
     # zero grad
     optimizer.zero_grad()
 
-    nb_iter = 10000
+    nb_iter = 10
 
     loss_fn = torch.nn.MSELoss()
 
@@ -452,5 +452,180 @@ def test_darcy_flow_operator_convergence():
 
     # save image into png
     plt.savefig("test_darcy_flow_operator_convergence.png")
+
+    assert True
+
+def test_temporal_convergence():
+    """
+    script to test the temporal convergence of the darcy flow operator
+    """
+    shape = (128, 128)
+
+    delta_x = 1./128.
+    delta_y = 1./128.
+    delta_t = 0.01
+
+    from discretize_pinn_loss.pdebenchmark_darcy import Darcy2DPDEDataset
+    from torch_geometric.data import Data, DataLoader
+
+    path = "/app/data/2D_DarcyFlow_beta1.0_Train.hdf5"
+
+    # init dataset and dataloader
+    dataset = Darcy2DPDEDataset(path_hdf5=path, delta_x=delta_x, delta_y=delta_y)
+
+    # divide into train and test
+    train_size = int(0.95 * len(dataset))
+    test_size = len(dataset) - train_size
+
+    train_dataset, test_dataset = torch.utils.data.random_split(dataset, [train_size, test_size], generator=torch.Generator().manual_seed(42))
+
+    # get the first batch of dataloader_test
+    a_x = test_dataset[2]
+
+    # we take the fist sample
+    # a_x = dataset[0] 
+
+    # we create the operator
+    darcy_flow_operator = DarcyLoss(delta_x=delta_x, delta_y=delta_y)
+
+    loss_fn = torch.nn.MSELoss()
+
+    nb_nodes = 128*128
+
+    x = a_x.target.clone()
+    #x = torch.randn(nb_nodes, 1, requires_grad=True)/1000.
+    x = init_solution((1, 128, 128))*0. + 1.
+    x = a_x.target.clone()
+
+    nb_time_step = 10
+
+    # init optimizer
+
+    error = 1.
+
+    t_current = x.clone()
+    t_current = t_current * (1 - a_x.mask.reshape(-1, 1))
+    t_current = t_current.detach().clone()
+
+    for idx_time in range(nb_time_step):
+
+        # init optimizer
+        t_new = t_current.clone()
+        t_new = t_new.detach().requires_grad_(True)
+        t_new = torch.nn.Parameter(t_new)
+        optimizer = torch.optim.Adam([t_new], lr=1e-1)
+
+        error = 100.
+
+        nb_iter_optim = 0
+
+        while error > 1 and nb_iter_optim < 100:
+
+            error = torch.norm(t_new - t_current).item()
+        
+            y = t_new * (1 - a_x.mask.reshape(-1, 1))
+
+            graph = Data(x=y, edge_index=a_x.edge_index, edge_attr=a_x.edge_attr)
+            graph_a_x = a_x
+
+            # we compute the nabla2d
+            darcy_flow_loss = darcy_flow_operator(graph, graph_a_x, a_x.mask)
+            temporal_loss = (y - t_current) / delta_t
+
+            # we compute the loss (mse)
+            loss = darcy_flow_loss + temporal_loss
+            loss = loss_fn(loss, torch.zeros_like(loss))
+
+            error = loss
+
+
+            # we compute the gradient
+            loss.backward()
+
+            # step on the optimizer
+            optimizer.step()
+
+            # zero grad
+            optimizer.zero_grad()
+
+            nb_iter_optim += 1
+
+
+        print("loss: ", loss)
+        print("nb_iter_optim: ", nb_iter_optim)
+
+        t_current = t_new.clone()
+        t_current = t_current * (1 - a_x.mask.reshape(-1, 1))
+        t_current = t_current.detach()
+
+    print("t_current: ", t_current.shape)
+
+    # reshape x to get to the image shape
+    t_current = t_current.reshape(shape)
+
+    print("t_current: ", t_current.shape)
+
+    import matplotlib.pyplot as plt
+
+    graph_target = Data(x=a_x.target, edge_index=a_x.edge_index, edge_attr=a_x.edge_attr)
+
+    darcy_flow_target = darcy_flow_operator(graph_target, graph_a_x, a_x.mask)
+
+    loss_target = loss_fn(darcy_flow_target, torch.zeros_like(darcy_flow_target))
+
+    print("loss_target: ", loss_target)
+
+    target = a_x.target.reshape(shape)
+
+    a_x_row = a_x.x[:, 0].reshape(shape)
+
+    # compute vmin and vman with the target
+    vmin = target.min()
+    vmax = target.max()
+
+    # compute difference between target and x
+    diff = target - t_current
+
+    # create subplot for 2 figures : target and prediction
+    fig, ax = plt.subplots(1, 4, figsize=(10, 10))
+    
+    # plot target
+    ax[0].imshow(target.detach().numpy(), cmap="jet", vmin=vmin, vmax=vmax)
+    ax[0].set_title("target")
+
+    print("t_current", t_current.detach().numpy().shape)
+    print("target", t_current.detach().numpy())
+
+    # plot prediction
+    ax[1].imshow(t_current.detach().numpy(), cmap="jet", vmin=vmin, vmax=vmax)
+    ax[1].set_title("prediction")
+
+    print(diff.shape)
+
+    # plot difference
+    ax[2].imshow(diff.detach().numpy(), cmap="jet", vmin=diff.min(), vmax=diff.max())
+    ax[2].set_title("difference")
+
+    # plot a_x
+    ax[3].imshow(a_x_row.detach().numpy(), cmap="jet", vmin=a_x_row.min(), vmax=a_x_row.max())
+    ax[3].set_title("a_x")
+
+    print("vmin: ", diff.min())
+    print("vmax: ", diff.max())
+
+    # show colorbar
+    fig.colorbar(ax[1].imshow(x.detach().numpy(), cmap="jet", vmin=vmin, vmax=vmax), ax=ax.ravel().tolist())
+
+    # save image into png
+    plt.savefig("test_darcy_flow_operator_convergence_temporal.png")
+
+    fig, ax = plt.subplots(1, 4, figsize=(10, 5))
+        # plot prediction
+    ax[1].imshow(t_current.detach().numpy(), cmap="jet", vmin=vmin, vmax=vmax)
+    ax[1].set_title("prediction")
+
+    # save image into png
+    plt.savefig("test_darcy_flow_operator_convergence_temporal_2.png")
+
 
     assert False
