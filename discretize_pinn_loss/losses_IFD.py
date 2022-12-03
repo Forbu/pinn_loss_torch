@@ -88,11 +88,18 @@ class LaplacianVectorLoss(nn.Module):
 
         self.delta_x = delta_x
 
-        self.spatial_second_derivative_operator_x = SpatialSecondDerivativeOperator(index_derivative_node=index_node_x,
+        self.spatial_second_derivative_operator_xx = SpatialSecondDerivativeOperator(index_derivative_node=index_node_x,
                                              index_derivative_edge=index_edge_x, delta_x=delta_x)
 
-        self.spatial_second_derivative_operator_y = SpatialSecondDerivativeOperator(index_derivative_node=index_node_y,
+        self.spatial_second_derivative_operator_yy = SpatialSecondDerivativeOperator(index_derivative_node=index_node_y,
                                                 index_derivative_edge=index_edge_y, delta_x=delta_x)
+
+        self.spatial_second_derivative_operator_xy = SpatialSecondDerivativeOperator(index_derivative_node=index_node_x,
+                                                index_derivative_edge=index_edge_y, delta_x=delta_x)
+
+        self.spatial_second_derivative_operator_yx = SpatialSecondDerivativeOperator(index_derivative_node=index_node_y,
+                                                index_derivative_edge=index_edge_x, delta_x=delta_x)
+
 
     def forward(self, graph_v):
         """
@@ -106,24 +113,28 @@ class LaplacianVectorLoss(nn.Module):
 
         # get the input node and reshape it because the model expects a batch
         bool_index = (edge_attr[:, self.index_node_x] != 0)
-        edge_attr_x = edge_attr[bool_index, self.index_edge_x]
+        edge_attr_x = edge_attr[bool_index, :]
         edge_index_x = graph_v.edge_index[:, bool_index]
 
+        graph_tmp = Data(x=graph_v.x, edge_index=edge_index_x, edge_attr=edge_attr_x)
+
         # compute the second derivative in x direction
-        second_derivative_x = self.spatial_second_derivative_operator_x(edge_attr_x, edge_index_x, graph_v.x)
+        second_derivative_x = self.spatial_second_derivative_operator_xx(graph_tmp)
+        second_derivative_xy = self.spatial_second_derivative_operator_yx(graph_tmp)
+
 
         # get the input node and reshape it because the model expects a batch
         bool_index = (edge_attr[:, self.index_node_y] != 0)
-        edge_attr_y = edge_attr[bool_index, self.index_edge_y]
+        edge_attr_y = edge_attr[bool_index, :]
         edge_index_y = graph_v.edge_index[:, bool_index]
 
+        graph_tmp = Data(x=graph_v.x, edge_index=edge_index_y, edge_attr=edge_attr_y)
+
         # compute the second derivative in y direction
-        second_derivative_y = self.spatial_second_derivative_operator_y(edge_attr_y, edge_index_y, graph_v.x)
-
-        # concat the two vectors to get the laplacian
-        laplacian = torch.cat((second_derivative_x, second_derivative_y), dim=1)        
-
-        return laplacian
+        second_derivative_y = self.spatial_second_derivative_operator_yy(graph_tmp)
+        second_derivative_yx = self.spatial_second_derivative_operator_xy(graph_tmp)
+        
+        return second_derivative_x, second_derivative_xy, second_derivative_y, second_derivative_yx 
 
 class IncompressibleFluidLoss(nn.Module):
     """
@@ -146,7 +157,7 @@ class IncompressibleFluidLoss(nn.Module):
 
         self.laplacian_loss = LaplacianVectorLoss(index_node_x, index_node_y, index_edge_x, index_edge_y, delta_x)
 
-    def forward(self, graph_v, graph_v_previous, graph_p, mu, rho, dt, force):
+    def forward(self, graph_v, graph_v_previous, graph_p, mu, dt, force):
         """
         :param v: the velocity field
         :param p: the pressure field
@@ -163,19 +174,23 @@ class IncompressibleFluidLoss(nn.Module):
 
         # get the input node and reshape it because the model expects a batch
         bool_index = (edge_attr[:, self.index_node_x] != 0)
-        edge_attr_x = edge_attr[bool_index, self.index_edge_x]
+        edge_attr_x = edge_attr[bool_index, :]
         edge_index_x = graph_v.edge_index[:, bool_index]
 
+        graph_tmp = Data(x=graph_v.x, edge_index=edge_index_x, edge_attr=edge_attr_x)
+
         # compute the derivative in x direction
-        derivative_x = self.spatial_derivative_operator_xx(edge_attr_x, edge_index_x, graph_v.x)
+        derivative_x = self.spatial_derivative_operator_xx(graph_tmp)
 
         # get the input node and reshape it because the model expects a batch
         bool_index = (edge_attr[:, self.index_node_y] != 0)
-        edge_attr_y = edge_attr[bool_index, self.index_edge_y]
+        edge_attr_y = edge_attr[bool_index, :]
         edge_index_y = graph_v.edge_index[:, bool_index]
 
+        graph_tmp = Data(x=graph_v.x, edge_index=edge_index_y, edge_attr=edge_attr_y)
+
         # compute the derivative in y direction
-        derivative_y = self.spatial_derivative_operator_yy(edge_attr_y, edge_index_y, graph_v.x)
+        derivative_y = self.spatial_derivative_operator_yy(graph_tmp)
 
         # compute the divergence THIS IS THE FIRST PART OF THE LOSS
         divergence = derivative_x + derivative_y
@@ -185,40 +200,44 @@ class IncompressibleFluidLoss(nn.Module):
         edge_attr = graph_v.edge_attr
 
         # get the input node and reshape it because the model expects a batch
-        bool_index = (edge_attr[:, self.index_node_x] != 0)
-        edge_attr_x = edge_attr[bool_index, self.index_edge_x]
-        edge_index_x = graph_v.edge_index[:, bool_index]
-
-        # compute the derivative in x direction
-        derivative_xy = self.spatial_derivative_operator_xy(edge_attr_x, edge_index_x, graph_v.x)
-
-        # get the input node and reshape it because the model expects a batch
         bool_index = (edge_attr[:, self.index_node_y] != 0)
-        edge_attr_y = edge_attr[bool_index, self.index_edge_y]
+        edge_attr_y = edge_attr[bool_index, :]
         edge_index_y = graph_v.edge_index[:, bool_index]
 
+        graph_tmp = Data(x=graph_v.x, edge_index=edge_index_y, edge_attr=edge_attr_y)
+
+        # compute the derivative in x direction
+        derivative_xy = self.spatial_derivative_operator_xy(graph_tmp)
+
+        # get the input node and reshape it because the model expects a batch
+        bool_index = (edge_attr[:, self.index_node_x] != 0)
+        edge_attr_x = edge_attr[bool_index, :]
+        edge_index_x = graph_v.edge_index[:, bool_index]
+
+        graph_tmp = Data(x=graph_v.x, edge_index=edge_index_x, edge_attr=edge_attr_x)
+
         # compute the derivative in y direction
-        derivative_yx = self.spatial_derivative_operator_yx(edge_attr_y, edge_index_y, graph_v.x)
+        derivative_yx = self.spatial_derivative_operator_yx(graph_tmp)
         
         # compute the laplacian
-        laplacian = self.laplacian_loss(graph_v)
-
+        second_derivative_x, second_derivative_xy, second_derivative_y, second_derivative_yx =\
+                                                                         self.laplacian_loss(graph_v)
 
         # compute the divergence THIS IS THE SECOND PART OF THE LOSS
-        loss_momentum_x = rho *( (graph_v.x[:, 0] - graph_v_previous.x[:, 0]) / dt + graph_v.x[:, 0] * derivative_x + \
+        loss_momentum_x = ( (graph_v.x[:, 0] - graph_v_previous.x[:, 0]) / dt + graph_v.x[:, 0] * derivative_x + \
                                                                              graph_v.x[:, 1] * derivative_xy) - \
-                            mu * laplacian[:, 0] - force[:, 0]  
+                            mu * (second_derivative_x + second_derivative_yx) - force[:, 0]  
         
-        loss_momentum_y = rho *( (graph_v.x[:, 1] - graph_v_previous.x[:, 1]) / dt + graph_v.x[:, 0] * derivative_yx + \
+        loss_momentum_y = ( (graph_v.x[:, 1] - graph_v_previous.x[:, 1]) / dt + graph_v.x[:, 0] * derivative_yx + \
                                                                                 graph_v.x[:, 1] * derivative_y) - \
-                            mu * laplacian[:, 1] - force[:, 1]
+                            mu * (second_derivative_y + second_derivative_xy) - force[:, 1]
 
+
+        print("loss_momentum_x", loss_momentum_x)
+        print("loss_momentum_y", loss_momentum_y)
 
         # compute the divergence THIS IS THE THIRD PART OF THE LOSS
         loss_continuity = divergence
 
-        # sum the three losses
-        loss_total = loss_momentum_x + loss_momentum_y + loss_continuity
-
-        return loss_momentum_x, loss_momentum_y, loss_continuity, loss_total
+        return loss_momentum_x, loss_momentum_y, loss_continuity
 
