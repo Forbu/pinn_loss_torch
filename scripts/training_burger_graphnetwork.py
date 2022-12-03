@@ -19,7 +19,7 @@ import sys
 sys.path.append("/app/")
 
 
-from discretize_pinn_loss.pdebenchmark import BurgerPDEDataset, BurgerPDEDatasetFullSimulation
+from discretize_pinn_loss.pdebenchmark_burger import BurgerPDEDataset, BurgerPDEDatasetFullSimulation
 from discretize_pinn_loss.models_fno import FNO1d
 from discretize_pinn_loss.utils import create_graph_burger
 from discretize_pinn_loss.loss_operator import BurgerDissipativeLossOperator, BurgerDissipativeImplicitLossOperator, BurgerDissipativeMixLossOperator
