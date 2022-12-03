@@ -40,29 +40,34 @@ class NSImcompressible2DPDEDataset(GeometricDataset):
     def __getitem__(self, idx):
 
         # we get the index of the time step
-        idx_t = idx // (self.batch_size - 3)
+        idx_t = idx % (self.nb_time - 3)
 
         # we get the index of the item
-        idx_item = idx % self.batch_size
+        idx_batch = idx // (self.nb_time - 3)
 
         # we open the hdf5 file
         with h5py.File(self.path_hdf5, "r") as f:
             
             # retrieve current velocity
-            velocity = np.array(f["velocity"][idx_item, idx_t, :, :, :])
+            velocity = np.array(f["velocity"][idx_batch, idx_t, :, :, :])
 
             # retrieve current force
-            force = np.array(f["force"][idx_item, :, :, :])
+            force = np.array(f["force"][idx_batch, :, :, :])
 
             # retrieve next velocity
-            velocity_next = np.array(f["velocity"][idx_item, idx_t + 1, :, :, :])
+            velocity_next = np.array(f["velocity"][idx_batch, idx_t + 1, :, :, :])
+
+        # we flatten the velocity, force and velocity_next
+        velocity = einops.rearrange(velocity, "h w c -> (h w) c")
+        force = einops.rearrange(force, "h w c -> (h w) c")
+        velocity_next = einops.rearrange(velocity_next, "h w c -> (h w) c")
 
         # we create the data
         data = Data(velocity=torch.from_numpy(velocity).float(),
                     force=torch.from_numpy(force).float(),
                     velocity_next=torch.from_numpy(velocity_next).float(),
-                    edges_index=torch.from_numpy(self.edges_index).long(),
-                    edges_attrib=torch.from_numpy(self.edges_attrib).float())
+                    edge_index=self.edges_index.long(),
+                    edge_attr=self.edges_attrib.float())
                     
         return data
 

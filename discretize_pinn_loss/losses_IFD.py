@@ -89,10 +89,10 @@ class LaplacianVectorLoss(nn.Module):
         self.delta_x = delta_x
 
         self.spatial_second_derivative_operator_x = SpatialSecondDerivativeOperator(index_derivative_node=index_node_x,
-                                             index_derivative_edge=index_edge_x, delta_x)
+                                             index_derivative_edge=index_edge_x, delta_x=delta_x)
 
         self.spatial_second_derivative_operator_y = SpatialSecondDerivativeOperator(index_derivative_node=index_node_y,
-                                                index_derivative_edge=index_edge_y, delta_x)
+                                                index_derivative_edge=index_edge_y, delta_x=delta_x)
 
     def forward(self, graph_v):
         """
