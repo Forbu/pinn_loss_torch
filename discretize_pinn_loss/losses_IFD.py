@@ -100,7 +100,6 @@ class LaplacianVectorLoss(nn.Module):
         self.spatial_second_derivative_operator_yx = SpatialSecondDerivativeOperator(index_derivative_node=index_node_y,
                                                 index_derivative_edge=index_edge_x, delta_x=delta_x)
 
-
     def forward(self, graph_v):
         """
         :param v: the velocity field
@@ -140,7 +139,7 @@ class IncompressibleFluidLoss(nn.Module):
     """
     This loss function computes the divergence of the velocity field and the laplacian of the velocity field
     """
-    def __init__(self, index_node_x=0, index_node_y=1, index_edge_x=0, index_edge_y=1, delta_x=0.01):
+    def __init__(self, index_node_x=0, index_node_y=1, index_edge_x=0, index_edge_y=1, delta_x=1./512):
         super().__init__()
 
         self.index_edge_x = index_edge_x
@@ -157,7 +156,7 @@ class IncompressibleFluidLoss(nn.Module):
 
         self.laplacian_loss = LaplacianVectorLoss(index_node_x, index_node_y, index_edge_x, index_edge_y, delta_x)
 
-    def forward(self, graph_v, graph_v_previous, graph_p, mu, dt, force):
+    def forward(self, graph_v, graph_v_previous, graph_w, mu, dt, force):
         """
         :param v: the velocity field
         :param p: the pressure field
@@ -232,10 +231,58 @@ class IncompressibleFluidLoss(nn.Module):
                                                                                 graph_v.x[:, 1] * derivative_y) - \
                             mu * (second_derivative_y + second_derivative_xy) - force[:, 1]
 
+        """
+        print("analysis")
+        temporal_derivative = (graph_v.x[:, 0] - graph_v_previous.x[:, 0]) / dt
 
-        print("loss_momentum_x", loss_momentum_x)
-        print("loss_momentum_y", loss_momentum_y)
+        
+        print( temporal_derivative)
 
+        import matplotlib.pyplot as plt
+
+        plt.figure()
+        plt.imshow(temporal_derivative.detach().numpy().reshape((512, 512)), vmin=-1.0, vmax=1.0)
+        plt.colorbar()
+        plt.savefig("1_temporal_derivative.png")
+
+        innertial_term_x = graph_v.x[:, 0] * derivative_x + graph_v.x[:, 1] * derivative_xy
+
+        print(innertial_term_x)
+
+        plt.figure()
+        plt.imshow(innertial_term_x.detach().numpy().reshape((512, 512)), vmin=-1.0, vmax=1.0)
+        plt.colorbar()
+        plt.savefig("2_innertial_term_x.png")
+
+        
+        momentum_term_x = temporal_derivative + innertial_term_x
+
+        print(momentum_term_x)
+
+        plt.figure()
+        plt.imshow(momentum_term_x.detach().numpy().reshape((512, 512)), vmin=-1.0, vmax=1.0)
+        plt.colorbar()
+        plt.savefig("2_momentum_term_x_x.png")
+
+
+        diffusive_term_x = mu * (second_derivative_x + second_derivative_yx)
+
+        print(diffusive_term_x)
+
+        plt.figure()
+        plt.imshow(diffusive_term_x.detach().numpy().reshape((512, 512)), vmin=-1.0, vmax=1.0)
+        plt.colorbar()
+        plt.savefig("3_diffusive_term_x.png")
+
+        external_term_x = force[:, 0]
+
+        print(external_term_x)
+
+        plt.figure()
+        plt.imshow(external_term_x.detach().numpy().reshape((512, 512)), vmin=-1.0, vmax=1.0)
+        plt.colorbar()
+        plt.savefig("4_external_term_x.png")
+        """
         # compute the divergence THIS IS THE THIRD PART OF THE LOSS
         loss_continuity = divergence
 

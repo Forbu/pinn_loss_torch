@@ -126,5 +126,9 @@ class CompressibleFluidLoss(nn.Module):
         # compute the derivative in y direction
         derivative_y = self.spatial_derivative_operator_yy(graph_tmp)
 
-        return loss_momentum_x, loss_momentum_y, loss_continuity
+        loss_continuity = derivative_x + derivative_y + (graph_p.x - graph_p_previous.x)/ dt
+
+        
+
+        return loss_continuity
 
