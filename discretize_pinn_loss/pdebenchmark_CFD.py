@@ -70,14 +70,14 @@ class NSCompressible2DPDEDataset(GeometricDataset):
         vx = einops.rearrange(vx, "h w -> (h w)")
         vy = einops.rearrange(vy, "h w -> (h w)")
 
-        density = einops.rearrange(density, "h w -> (h w)").unsqueeze(1)
-        pressure = einops.rearrange(pressure, "h w -> (h w)").unsqueeze(1)
+        density = einops.rearrange(density, "h w -> (h w)")
+        pressure = einops.rearrange(pressure, "h w -> (h w)")
 
         vx_next = einops.rearrange(vx_next, "h w -> (h w)")
         vy_next = einops.rearrange(vy_next, "h w -> (h w)")
 
-        density_next = einops.rearrange(density_next, "h w -> (h w)").unsqueeze(1)
-        pressure_next = einops.rearrange(pressure_next, "h w -> (h w)").unsqueeze(1)
+        density_next = einops.rearrange(density_next, "h w -> (h w)")
+        pressure_next = einops.rearrange(pressure_next, "h w -> (h w)")
 
         V = np.stack([vx, vy], axis=1)
         V_next = np.stack([vx_next, vy_next], axis=1)
@@ -86,12 +86,12 @@ class NSCompressible2DPDEDataset(GeometricDataset):
         data = Data(
             V=torch.from_numpy(V).float(),
             V_next=torch.from_numpy(V_next).float(),
-            density=torch.from_numpy(density).float(),
-            pressure=torch.from_numpy(pressure).float(),
-            density_next=torch.from_numpy(density_next).float(),
-            pressure_next=torch.from_numpy(pressure_next).float(),
-            edge_index=torch.from_numpy(self.edges_index).long(),
-            edge_attr=torch.from_numpy(self.edges_attrib).float(),
+            density=torch.from_numpy(density).float().unsqueeze(1),
+            pressure=torch.from_numpy(pressure).float().unsqueeze(1),
+            density_next=torch.from_numpy(density_next).float().unsqueeze(1),
+            pressure_next=torch.from_numpy(pressure_next).float().unsqueeze(1),
+            edge_index=self.edges_index.long(),
+            edge_attr=self.edges_attrib.float(),
         )
                     
         return data

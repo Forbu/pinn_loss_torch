@@ -111,24 +111,33 @@ class CompressibleFluidLoss(nn.Module):
         edge_attr_x = edge_attr[bool_index, :]
         edge_index_x = graph_v.edge_index[:, bool_index]
 
-        graph_tmp = Data(x=graph_v.x * graph_p.x, edge_index=edge_index_x, edge_attr=edge_attr_x)
+        graph_tmp = Data(x=graph_v.x * graph_rho.x, edge_index=edge_index_x, edge_attr=edge_attr_x)
 
         # compute the derivative in x direction
         derivative_x = self.spatial_derivative_operator_xx(graph_tmp)
+
+        graph_tmp = Data(x=graph_v_previous.x * graph_rho_previous.x, edge_index=edge_index_x, edge_attr=edge_attr_x)
+
+        # compute the derivative in x direction
+        derivative_x_previous = self.spatial_derivative_operator_xx(graph_tmp)
 
         # get the input node and reshape it because the model expects a batch
         bool_index = (edge_attr[:, self.index_node_y] != 0)
         edge_attr_y = edge_attr[bool_index, :]
         edge_index_y = graph_v.edge_index[:, bool_index]
 
-        graph_tmp = Data(x=graph_v.x * graph_p.x, edge_index=edge_index_y, edge_attr=edge_attr_y)
+        graph_tmp = Data(x=graph_v.x * graph_rho.x, edge_index=edge_index_y, edge_attr=edge_attr_y)
 
         # compute the derivative in y direction
         derivative_y = self.spatial_derivative_operator_yy(graph_tmp)
 
-        loss_continuity = derivative_x + derivative_y + (graph_p.x - graph_p_previous.x)/ dt
+        graph_tmp = Data(x=graph_v_previous.x * graph_rho_previous.x, edge_index=edge_index_y, edge_attr=edge_attr_y)
 
-        
+        # compute the derivative in y direction
+        derivative_y_previous = self.spatial_derivative_operator_yy(graph_tmp)
+
+        loss_continuity = (derivative_x.unsqueeze(1) + derivative_y.unsqueeze(1)) +\
+                                            (graph_rho.x - graph_rho_previous.x)/ dt
 
         return loss_continuity
 
