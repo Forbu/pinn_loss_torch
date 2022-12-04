@@ -9,6 +9,7 @@ images/
 notebooks/
 checkpoints/
 hall_*
+**.png
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
